@@ -1,5 +1,5 @@
 node_modules/
 .env
-data/
-.scraped-urls.json
-failed_urls.json
+scripts/data/
+**/.scraped-urls.json
+**/failed_urls.json
