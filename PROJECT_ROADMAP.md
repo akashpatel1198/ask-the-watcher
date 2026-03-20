@@ -35,12 +35,12 @@ The following entities will be scraped, stored, and exposed via the API:
 │   ├── scrape-comics.js
 │   ├── scrape-teams.js
 │   ├── scrape-events.js
-│   └── seed-db.js
-├── data/              # JSON output from scrape scripts (precursor to DB)
-│   ├── characters.json
-│   ├── comics.json
-│   ├── teams.json
-│   └── events.json
+│   ├── seed-db.js
+│   └── data/          # JSON output from scrape scripts (precursor to DB)
+│       ├── characters.json
+│       ├── comics.json
+│       ├── teams.json
+│       └── events.json
 ├── src/               # NestJS API
 │   ├── characters/
 │   ├── comics/
@@ -90,7 +90,7 @@ The following entities will be scraped, stored, and exposed via the API:
    **Story Events** — `name`, `universe`, `start_issue`, `end_issue`, `key_characters`, `wiki_url` *(TBD)*
 
 5. **Write extracted data to JSON files**
-   - Each script outputs to `/data/<entity>.json`
+   - Each script outputs to `/scripts/data/<entity>.json`
    - This is the source of truth before the DB is wired up
 
 6. **Add basic rate limiting**
@@ -157,7 +157,7 @@ The following entities will be scraped, stored, and exposed via the API:
    - On restart, skip already-processed URLs
 
 3. **Write `seed-db.js`**
-   - Reads from `/data/*.json` (or pipes directly from scraper)
+   - Reads from `/scripts/data/*.json` (or pipes directly from scraper)
    - Upserts records into Supabase using `wiki_url` as a unique key to avoid duplicates
    - Handles join table population after core tables are seeded
 
