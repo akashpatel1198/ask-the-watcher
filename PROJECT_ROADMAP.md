@@ -105,6 +105,25 @@ ReleaseDate, Month, Year, Editor-in-Chief, Image1, StoryTitle1, Writer/Penciler/
 
 **The `Appearing` field is a relationship goldmine.** It categorizes characters as Featured/Supporting/Antagonist, tags first appearances and deaths, and uses wiki links that map directly to character page titles (natural foreign keys).
 
+**Teams: flat category, rich infobox, inline member lists.** All ~6,692 team pages live flat under `Category:Teams` (6 subcategories: by Status, Type, Identity, Reality, Unseen, Year of Debut). Pages follow the `Name (Earth-616)` convention. Infobox fields are consistent across popular and obscure teams.
+
+**Fields reliably available for Teams (13 sampled — mix of popular + obscure):**
+Name, Image, Status, Identity, Reality, BaseOfOperations, Creators, First (first appearance), History
+
+**Fields commonly available (8+ of 13):**
+FormerMembers, Leaders, Enemies, Origin, PlaceOfFormation, CurrentMembers, Allies, Weapons/Equipment/Transportation
+
+**Fields sometimes available:**
+Last (only on defunct teams — 5/13), Aliases, EditorialNames, Overview, Quotation/Speaker, Notes, Trivia
+
+**Key relationship fields for Teams:**
+- `CurrentMembers` / `FormerMembers` → character wiki links (`[[Peter Parker (Earth-616)|Spider-Man]]`) — natural foreign keys to character pages. Most teams have inline member lists; very large teams (e.g., Avengers) redirect to a separate "List of X members" page.
+- `First` / `Last` → issue page titles (`Sleepwalker Vol 1 2`) — direct links to comic issue pages.
+- `Allies` / `Enemies` → mix of team and character wiki links — potential team↔team or team↔character relations.
+- `Leaders` → character wiki links, usually 1–2 people — could be a tagged role on a team↔character join table.
+
+**Redirect edge case:** Some teams use redirect page titles (e.g., `S.H.I.E.L.D. (Earth-616)` redirects to `Strategic Homeland Intervention, Enforcement and Logistics Division (Earth-616)`). The full scraper will need to follow redirects to get the actual infobox data.
+
 ### Progress
 
 - [x] Category counts for all 4 entity types
@@ -114,8 +133,11 @@ ReleaseDate, Month, Year, Editor-in-Chief, Image1, StoryTitle1, Writer/Penciler/
 - [x] Sample JSON output for 9 characters
 - [x] Comic discovery: explored category structure (series vs issues), decided on issues as primary entity
 - [x] Comic discovery: sampled series pages (12) and issue pages (10 iconic issues)
+- [x] Team discovery: explored category structure (flat, 6 subcategories)
+- [x] Team discovery: sampled 14 teams (6 popular, 4 mid-tier, 4 obscure), field frequency analysis
+- [x] Team discovery: identified relationship fields (members→characters, first/last→issues, allies/enemies)
+- [x] Team discovery: debugged S.H.I.E.L.D. redirect edge case
 - [ ] Comic fetch-sample finalized (may want more diverse samples beyond iconic issues)
-- [ ] Team entity discovery
 - [ ] Event entity discovery
 - [ ] Wikitext-to-clean-text parser
 
