@@ -1,5 +1,6 @@
 node_modules/
 .env
 scripts/data/
+scripts/discovery/case-study/output/
 **/.scraped-urls.json
 **/failed_urls.json

@@ -1,6 +1,9 @@
 import axios from "axios";
+import { writeFile, mkdir } from "fs/promises";
 
 const API_URL = "https://marvel.fandom.com/api.php";
+const OUT_DIR = "scripts/discovery/case-study/output";
+await mkdir(OUT_DIR, { recursive: true });
 
 const characters = [
     "Peter Parker (Earth-616)",
@@ -8,79 +11,61 @@ const characters = [
     "William Braddock (Earth-833)",
 ];
 
-for (const page of characters) {
-    console.log(`\n${"=".repeat(60)}`);
-    console.log(page);
-    console.log("=".repeat(60));
-
-    // 1. Intro section (section=0 = everything before first heading)
-    const introRes = await axios.get(API_URL, {
-        params: {
-            action: "parse",
-            page,
-            prop: "wikitext",
-            section: 0,
-            format: "json",
-        },
-    });
-    const introText = introRes.data.parse.wikitext["*"];
-    // grab text outside the infobox template — everything after the closing }}
-    const afterInfobox = introText.split(/\}\}/g).pop().trim();
-    console.log("\n--- INTRO ---");
-    console.log(afterInfobox.slice(0, 500) || "(no intro text)");
-
-    // 2. Section headings (so we can see what sections exist)
-    const sectionsRes = await axios.get(API_URL, {
-        params: {
-            action: "parse",
-            page,
-            prop: "sections",
-            format: "json",
-        },
-    });
-    const sections = sectionsRes.data.parse.sections;
-    console.log("\n--- SECTIONS ---");
-    sections.forEach((s) => console.log(`  ${"  ".repeat(s.toclevel - 1)}${s.line}`));
-
-    // 3. Powers section (find the section index, then fetch it)
-    const powersSection = sections.find(
-        (s) => s.line === "Powers" || s.line === "Powers and Abilities"
-    );
-    if (powersSection) {
-        const powersRes = await axios.get(API_URL, {
+async function fetchSection(page, sectionIndex) {
+    try {
+        const res = await axios.get(API_URL, {
             params: {
                 action: "parse",
                 page,
                 prop: "wikitext",
-                section: powersSection.index,
+                section: sectionIndex,
                 format: "json",
             },
         });
-        const powersText = powersRes.data.parse.wikitext["*"];
-        console.log("\n--- POWERS ---");
-        console.log(powersText.slice(0, 800));
-    } else {
-        console.log("\n--- POWERS ---");
-        console.log("(no Powers section found)");
-    }
-
-    // 4. Abilities section
-    const abilitiesSection = sections.find((s) => s.line === "Abilities");
-    if (abilitiesSection) {
-        const abilitiesRes = await axios.get(API_URL, {
-            params: {
-                action: "parse",
-                page,
-                prop: "wikitext",
-                section: abilitiesSection.index,
-                format: "json",
-            },
-        });
-        const abilitiesText = abilitiesRes.data.parse.wikitext["*"];
-        console.log("\n--- ABILITIES ---");
-        console.log(abilitiesText.slice(0, 800));
-    } else {
-        console.log("\n--- ABILITIES ---");
-        console.log("(no Abilities section found)");
+        return res.data.parse.wikitext["*"];
+    } catch {
+        return null;
     }
 }
+
+for (const page of characters) {
+    console.log(`Fetching ${page}...`);
+
+    // 1. Sections list
+    const sectionsRes = await axios.get(API_URL, {
+        params: { action: "parse", page, prop: "sections", format: "json" },
+    });
+    const sections = sectionsRes.data.parse.sections;
+
+    // 2. Intro (section 0)
+    const introRaw = await fetchSection(page, 0);
+    const afterInfobox = introRaw?.split(/\}\}/g).pop().trim() || "";
+
+    // 3. Grab specific sections by name
+    const targetSections = ["Powers", "Abilities", "Weaknesses", "Powers and Abilities"];
+    const sectionData = {};
+    for (const s of sections) {
+        if (targetSections.includes(s.line)) {
+            sectionData[s.line] = await fetchSection(page, s.index);
+        }
+    }
+
+    // 4. Build output
+    const result = {
+        page,
+        intro: afterInfobox,
+        sections: sections.map((s) => ({
+            heading: s.line,
+            level: s.toclevel,
+            index: s.index,
+        })),
+        ...sectionData,
+    };
+
+    const filename = page.replace(/[\s()]/g, "_").replace(/_+/g, "_");
+    const path = `${OUT_DIR}/${filename}.json`;
+    await writeFile(path, JSON.stringify(result, null, 2));
+    console.log(`  -> ${path}`);
+}
+
+console.log("\nDone!");
