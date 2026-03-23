@@ -31,5 +31,10 @@ for (const line of wikitext.split("\n")) {
     if (!trimmed) continue;
 
     console.log(`\n--- ${field} ---`);
-    console.log(trimmed.slice(0, 300));
+    if (field == "Abilities") {
+        console.log(trimmed)
+    } else {
+        console.log(trimmed.slice(0, 300));
+    }
+    
 }
