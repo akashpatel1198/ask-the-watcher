@@ -22,20 +22,27 @@ function parseInfobox(wikitext) {
     let currentField = null;
 
     for (const line of wikitext.split("\n")) {
+        // new field: "| FieldName = ..."
         const fieldMatch = line.match(/^\|\s*(.+?)\s*=\s*(.*)/);
         if (fieldMatch) {
             currentField = fieldMatch[1];
             const value = fieldMatch[2].trim();
             fields[currentField] = value;
-        } else if (currentField && (line.startsWith("*") || line.startsWith("**"))) {
-            fields[currentField] += "\n" + line;
-        } else if (line.match(/^\}\}/) || line.match(/^\|/)) {
-            currentField = null;
+        } else if (currentField) {
+            // keep appending any line that isn't the start of a new field
+            // stop on lines that are just "}}" (end of template)
+            if (line.match(/^\}\}\s*$/)) {
+                currentField = null;
+            } else {
+                fields[currentField] += "\n" + line;
+            }
         }
     }
 
+    // clean up: trim values, remove empty ones, strip {{Clear}} artifacts
     for (const key of Object.keys(fields)) {
-        if (!fields[key].trim()) delete fields[key];
+        fields[key] = fields[key].replace(/^\{\{[Cc]lear\}\}\s*/, "").trim();
+        if (!fields[key]) delete fields[key];
     }
 
     return fields;

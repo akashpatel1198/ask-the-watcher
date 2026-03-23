@@ -1,12 +1,13 @@
-# Marvel Wiki Scraper — Project Roadmap
+# Marvel Wiki API — Project Roadmap
 
 ## Tech Stack
 
 | Layer | Tool |
 |---|---|
 | Language | Node.js (ESM) |
-| Scraping | `axios` + `cheerio` |
-| Database | Supabase (Hobby Tier) |
+| Data Source | MediaWiki API (`marvel.fandom.com/api.php`) |
+| HTTP Client | `axios` |
+| Database | Supabase (Free → Hobby Tier) |
 | API Framework | NestJS |
 | API Docs | `@nestjs/swagger` (Swagger UI) |
 | Auth | API Key (via NestJS Guard) |
@@ -17,12 +18,23 @@
 
 The following entities will be scraped, stored, and exposed via the API:
 
-- **Characters** — across all universes (Earth-616, Ultimate, etc.)
+- **Characters**
 - **Comics / Issues**
 - **Teams / Groups**
 - **Story Events**
 
-> ⚠️ **Disclaimer:** Exact data shapes, fields, and relationships are not yet defined. What gets stored per entity — and how entities relate to each other — will be determined during Phase 1 after exploring the wiki's actual HTML structure and seeing what data is reliably available. Schema design in Phase 2 will be driven by those findings, not assumptions.
+> Schema and field selection will be driven by the Discovery phase findings.
+
+### Category Scale (as of discovery)
+
+| Category | Page Count |
+|---|---|
+| Characters | ~98,500 |
+| Comics | ~70,400 |
+| Events | ~384 |
+| Teams | ~6,700 |
+
+> Characters and Comics will need filtering — most pages are extremely obscure. Events and Teams are manageable in full.
 
 ---
 
@@ -30,145 +42,134 @@ The following entities will be scraped, stored, and exposed via the API:
 
 ```
 /
-├── scripts/           # Local-only scraping + seeding scripts (never exposed)
-│   ├── scrape-characters.js
+├── scripts/
+│   ├── discovery/                # Phase 1 — explore wiki data before building
+│   │   ├── pre-testing/          # Early exploration scripts (category counts, search, field frequency)
+│   │   ├── case-study/           # Deep dives on specific pages (Spider-Man variants)
+│   │   │   └── output/           # (gitignored) JSON dumps from case study scripts
+│   │   ├── character/            # Character entity discovery
+│   │   │   └── output/           # (gitignored) JSON dumps for sampled characters
+│   │   ├── comic/                # Comic entity discovery (TODO)
+│   │   ├── team/                 # Team entity discovery (TODO)
+│   │   └── event/                # Event entity discovery (TODO)
+│   ├── scrape-characters.js      # Full scrape scripts (Phase 3)
 │   ├── scrape-comics.js
 │   ├── scrape-teams.js
 │   ├── scrape-events.js
 │   ├── seed-db.js
-│   └── data/          # JSON output from scrape scripts (precursor to DB)
-│       ├── characters.json
-│       ├── comics.json
-│       ├── teams.json
-│       └── events.json
-├── src/               # NestJS API
+│   └── data/                     # (gitignored) JSON output from scrape scripts
+├── lib/
+│   ├── scraper-utils.js
+│   └── supabase.js
+├── src/                          # NestJS API (Phase 4)
 │   ├── characters/
 │   ├── comics/
 │   ├── teams/
 │   ├── events/
-│   └── main.ts
+│   └── main.js
 ├── .env
-└── ROADMAP.md
+└── PROJECT_ROADMAP.md
 ```
 
 ---
 
-## Phase 1 — Scraping Scripts (Local Only)
+## Phase 1 — Discovery
 
-> Goal: Understand the wiki's HTML structure and extract clean data. No DB yet. Output to console and local JSON files.
+> Goal: Use the MediaWiki API to understand what data is available for each entity type, how it's structured, and what's worth keeping. Output sample data to local JSON files. These findings will drive the database schema in Phase 2.
 
-### Steps
+### Approach
 
-1. **Set up the project**
-   - Init Node.js project with ESM (`"type": "module"` in `package.json`)
-   - Install deps: `axios`, `cheerio`
-   - Create `/scripts` and `/data` folders
+We use `marvel.fandom.com/api.php` instead of HTML scraping. The wiki's MediaWiki API returns structured data (JSON) and doesn't block automated requests. Key endpoints:
 
-2. **Explore the wiki structure**
-   - Identify category listing pages for each entity, e.g.:
-     - Characters: `marvel.fandom.com/wiki/Category:Characters`
-     - Comics: `marvel.fandom.com/wiki/Category:Comics`
-     - Teams: `marvel.fandom.com/wiki/Category:Teams`
-     - Events: `marvel.fandom.com/wiki/Category:Events`
-   - Inspect individual page HTML to locate infobox selectors (`.pi-data`, `[data-source="..."]`)
+- `action=query&list=categorymembers` — list pages in a category
+- `action=parse&prop=wikitext` — get raw wikitext (contains infobox fields)
+- `action=opensearch` — search for pages by title
+- `action=query&prop=categoryinfo` — get category metadata (page counts)
 
-3. **Write a single-page scraper per entity**
-   - Hardcode one example URL per entity to start
-   - Log extracted fields to console
-   - Confirm selectors are reliable across a few different pages
+### Key Findings So Far
 
-4. **Identify fields to capture per entity**
+**Infobox is the primary data source.** Each character/entity page has a wikitext infobox template with structured `| FieldName = Value` pairs. A custom parser extracts these, including multi-line fields (e.g., Powers spanning dozens of lines with sub-entries).
 
-   > ⚠️ The fields below are rough starting points only — placeholders to guide initial exploration. What's actually available and worth storing will be decided after hands-on scraping. Treat these as questions, not decisions.
+**Fields reliably available for Characters (9/9 sampled):**
+Name, CurrentAlias, Aliases, Affiliation, Gender, Height, Weight, Eyes, Hair, Origin, Reality, PlaceOfBirth, Identity, Citizenship, Occupation, Education, Creators, First (first appearance), Powers, Abilities, Weaknesses, Equipment, Transportation, Weapons
 
-   **Characters** — `name`, `real_name`, `universe`, `aliases`, `affiliation`, `powers`, `first_appearance`, `wiki_url`, `image_url` *(TBD)*
+**Fields sometimes available (varies by character):**
+Overview (intro blurb), Codenames, Nicknames, Ancestors, Siblings, Spouses, Children, Relatives, Skin, Eyeballs
 
-   **Comics / Issues** — `title`, `issue_number`, `release_date`, `arc`, `wiki_url`, `cover_image_url` *(TBD)*
+**Raw wikitext needs cleaning** — values contain wiki markup: `{{r|...}}` references, `{{Power|...}}` templates, `[[Link|Display Text]]` wiki links. A wikitext-to-clean-text parser will be needed before storing data.
 
-   **Teams / Groups** — `name`, `universe`, `members`, `base_of_operations`, `wiki_url`, `image_url` *(TBD)*
+### Progress
 
-   **Story Events** — `name`, `universe`, `start_issue`, `end_issue`, `key_characters`, `wiki_url` *(TBD)*
-
-5. **Write extracted data to JSON files**
-   - Each script outputs to `/scripts/data/<entity>.json`
-   - This is the source of truth before the DB is wired up
-
-6. **Add basic rate limiting**
-   - Add a configurable delay between requests (start at `800ms`)
-   - Log each page fetch so progress is visible in terminal
-
-### Notes
-- Check `marvel.fandom.com/robots.txt` before scraping
-- Keep scripts idempotent — re-running should overwrite, not duplicate
-- Category pages are paginated — handle `?from=` query param for next page
+- [x] Category counts for all 4 entity types
+- [x] Character field frequency analysis (9 well-known characters)
+- [x] Case study: Spider-Man variants (Peter Parker, Ai Apaec, William Braddock) — compared field coverage across popular vs. obscure pages
+- [x] Working multi-line infobox parser (handles `{{Clear}}`, continuation lines, nested bullet points)
+- [x] Sample JSON output for 9 characters
+- [ ] Comic entity discovery
+- [ ] Team entity discovery
+- [ ] Event entity discovery
+- [ ] Wikitext-to-clean-text parser
 
 ---
 
-## Phase 2 — Supabase Integration
+## Phase 2 — Schema Design + Supabase Setup
 
-> Goal: Connect to Supabase and validate the schema works before loading real data.
+> Goal: Design a relational DB schema informed by Phase 1 findings, set up Supabase, and validate the schema.
 
 ### Steps
 
-1. **Create Supabase project**
-   - Set up project on Supabase hobby tier
+1. **Design schema based on discovery data**
+   - Pick final fields per entity
+   - Define relationships (character ↔ team, character ↔ comic, event ↔ comic, etc.)
+   - Account for Supabase free tier limits (500MB DB)
+
+2. **Create Supabase project**
    - Store `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.env`
-
-2. **Define schema**
-
-   > ⚠️ Schema is TBD — to be designed after Phase 1 scraping exploration. The structure below is a placeholder only. Actual tables, columns, and relationships will be finalized once we know what data the wiki reliably provides.
-
-   ```sql
-   -- Placeholder — schema will be defined after Phase 1
-   characters (id, ...TBD, wiki_url, created_at)
-   comics     (id, ...TBD, wiki_url, created_at)
-   teams      (id, ...TBD, wiki_url, created_at)
-   events     (id, ...TBD, wiki_url, created_at)
-
-   -- Join tables — relationships TBD based on what data is available
-   -- e.g. character_teams, character_events, comic_events, etc.
-   ```
-
-   > Hobby tier has a 500MB DB limit — avoid storing large blobs. Store `image_url` as a string, not the image itself.
 
 3. **Install Supabase JS SDK**
    - `npm install @supabase/supabase-js`
-   - Create a shared `lib/supabase.js` client used by all scripts
+   - Shared `lib/supabase.js` client
 
 4. **Write connection test script**
    - `scripts/test-connection.js`
-   - Inserts one dummy row per table, reads it back, deletes it
    - Confirms schema + credentials are working
 
 ---
 
 ## Phase 3 — Full Scrape + DB Seed
 
-> Goal: Run production scrapes across all category pages and load clean data into Supabase.
+> Goal: Run production scrapes across all entity categories and load clean data into Supabase.
 
 ### Steps
 
-1. **Upgrade scripts to crawl category pages**
-   - Paginate through category listing pages to collect all entity URLs
-   - Store discovered URLs in a queue
+1. **Build wikitext-to-clean-text parser**
+   - Strip `{{r|...}}` references
+   - Resolve `[[Link|Display Text]]` wiki links to display text
+   - Extract power names from `{{Power|...}}` templates
+   - Handle nested templates and edge cases
 
-2. **Add resumability**
-   - Track scraped URLs in a local `.scraped-urls.json` file or a `scrape_log` table in Supabase
-   - On restart, skip already-processed URLs
+2. **Decide filtering strategy per entity**
+   - Characters (~98k): filter by field completeness, number of appearances, or curated lists
+   - Comics (~70k): possibly track series rather than individual issues, or filter by notable series
+   - Events (~384): likely keep all
+   - Teams (~6.7k): likely keep most
 
-3. **Write `seed-db.js`**
-   - Reads from `/scripts/data/*.json` (or pipes directly from scraper)
-   - Upserts records into Supabase using `wiki_url` as a unique key to avoid duplicates
-   - Handles join table population after core tables are seeded
+3. **Write full scrape scripts**
+   - Paginate through category pages to collect all entity URLs
+   - Apply filters
+   - Parse and clean data
+   - Output to JSON
 
-4. **Validate data in Supabase dashboard**
-   - Spot check a few characters, teams, events
-   - Confirm relationships are correct in join tables
-   - Check row counts are reasonable
+4. **Add resumability**
+   - Track scraped URLs to allow restart without re-fetching
 
-5. **Handle errors gracefully**
-   - Pages that 404, timeout, or have unexpected HTML should be logged to a `failed_urls.json` and skipped
-   - Never let one bad page crash the full scrape
+5. **Write `seed-db.js`**
+   - Reads from JSON output
+   - Upserts into Supabase using wiki page title as unique key
+   - Populates join tables after core tables
+
+6. **Validate data**
+   - Spot check entities and relationships in Supabase dashboard
 
 ---
 
@@ -179,16 +180,12 @@ The following entities will be scraped, stored, and exposed via the API:
 ### Steps
 
 1. **Scaffold NestJS project**
-   - `nest new src` or init inside `/src`
-   - Install: `@nestjs/swagger`, `@supabase/supabase-js`, `swagger-ui-express`
 
 2. **Supabase service**
-   - Create a shared `SupabaseService` injectable that wraps the client
-   - Used by all feature modules
+   - Shared `SupabaseService` injectable
 
 3. **API key auth**
-   - Implement a NestJS `Guard` that checks for `x-api-key` header
-   - Key stored in `.env`, applied globally or per-route
+   - NestJS `Guard` checking `x-api-key` header
    - Return `401` on missing/invalid key
 
 4. **Feature modules** (one per entity)
@@ -198,15 +195,15 @@ The following entities will be scraped, stored, and exposed via the API:
    **Endpoints per entity:**
 
    ```
-   GET /characters              # List all, with pagination + filters (universe, name)
+   GET /characters              # List all, with pagination + filters
    GET /characters/:id          # Single character
    GET /characters/:id/teams    # Teams a character belongs to
    GET /characters/:id/events   # Events a character appeared in
 
-   GET /comics                  # List all, with filters (arc, release_date)
+   GET /comics                  # List all, with filters
    GET /comics/:id              # Single comic
 
-   GET /teams                   # List all, with filters (universe)
+   GET /teams                   # List all, with filters
    GET /teams/:id               # Single team
    GET /teams/:id/members       # Characters in the team
 
@@ -217,13 +214,11 @@ The following entities will be scraped, stored, and exposed via the API:
    ```
 
 5. **Swagger setup**
-   - Configure `@nestjs/swagger` in `main.ts`
-   - Decorate all DTOs and controllers with Swagger decorators
-   - Swagger UI accessible at `/api/docs`
-   - All endpoints testable directly in browser (with API key input)
+   - Swagger UI at `/api/docs`
+   - All endpoints testable in browser
 
 6. **Pagination**
-   - All list endpoints support `?page=` and `?limit=` query params
+   - `?page=` and `?limit=` query params
    - Default limit: 20, max: 100
 
 ---
