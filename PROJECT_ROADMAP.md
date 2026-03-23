@@ -124,6 +124,29 @@ Last (only on defunct teams — 5/13), Aliases, EditorialNames, Overview, Quotat
 
 **Redirect edge case:** Some teams use redirect page titles (e.g., `S.H.I.E.L.D. (Earth-616)` redirects to `Strategic Homeland Intervention, Enforcement and Logistics Division (Earth-616)`). The full scraper will need to follow redirects to get the actual infobox data.
 
+**Events: different infobox structure, rich synopses, ordered reading lists.** Only ~384 pages. Events don't use `(Earth-616)` suffixes — they use `(Event)` suffix or plain titles. Each event gets its own subcategory (425 subcategories total) for related comics. The infobox is structured as a "story card" rather than an entity card.
+
+**Fields reliably available for Events (14 sampled — mix of major crossovers + obscure):**
+Name, Image, First, Synopsis (100%), Reality (93%)
+
+**Fields commonly available (8+ of 14):**
+Part1–PartN (ordered reading list, 86%), Protagonists (79%), Trivia (79%), Aliases (71%), Antagonists (71%), Last (71%)
+
+**Fields sometimes available:**
+Locations (57%), TieIns (57%), Creators (50% — many events span multiple creative teams), Others (36%), Quotation/Speaker, Notes, Prelude
+
+**The `Synopsis` field is exceptionally rich.** Every sampled event has a full plot summary — not just a blurb but a detailed narrative covering the entire event. This is significantly more substantial than team/character Overview fields and is ideal for API consumers.
+
+**The `Part1`–`PartN` fields provide structured reading order.** Each part maps to an issue page title, giving an ordered event→comic relationship. Events range from 6 parts (Infinity Gauntlet) to 24+ parts (larger crossovers).
+
+**Key relationship fields for Events:**
+- `Protagonists` / `Antagonists` / `Others` → character AND team wiki links mixed together — can be parsed into event↔character and event↔team joins, tagged by role (protagonist/antagonist/other).
+- `Part1`–`PartN` → ordered issue page titles — event↔comic join with explicit reading order.
+- `First` / `Last` → issue page titles — bookend references.
+- `TieIns` / `Prelude` → additional issue references via `{{cl|...}}` templates — supplementary event↔comic relations.
+
+**Events are small enough (~384) to keep all without filtering.**
+
 ### Progress
 
 - [x] Category counts for all 4 entity types
@@ -137,8 +160,10 @@ Last (only on defunct teams — 5/13), Aliases, EditorialNames, Overview, Quotat
 - [x] Team discovery: sampled 14 teams (6 popular, 4 mid-tier, 4 obscure), field frequency analysis
 - [x] Team discovery: identified relationship fields (members→characters, first/last→issues, allies/enemies)
 - [x] Team discovery: debugged S.H.I.E.L.D. redirect edge case
+- [x] Event discovery: explored category structure (~384 pages, 425 subcategories, no Earth-616 suffix)
+- [x] Event discovery: sampled 14 events (6 major crossovers, 4 mid-tier, 4 obscure), field frequency analysis
+- [x] Event discovery: identified relationship fields (protagonists/antagonists→characters+teams, PartN→ordered reading list, tie-ins)
 - [ ] Comic fetch-sample finalized (may want more diverse samples beyond iconic issues)
-- [ ] Event entity discovery
 - [ ] Wikitext-to-clean-text parser
 
 ---
