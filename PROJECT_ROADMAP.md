@@ -98,6 +98,13 @@ Overview (intro blurb), Codenames, Nicknames, Ancestors, Siblings, Spouses, Chil
 
 **Raw wikitext needs cleaning** — values contain wiki markup: `{{r|...}}` references, `{{Power|...}}` templates, `[[Link|Display Text]]` wiki links. A wikitext-to-clean-text parser will be needed before storing data.
 
+**Comics: individual issues over series.** The wiki has both series pages (~569) and individual issue pages (~70k). Series pages have limited data (format, status, featured character, creator lists). Issue pages are far richer: release date, per-story credits, full synopsis, and most importantly the `Appearing` field which lists every character in the issue with structured tags for first appearances (`{{1st}}`), deaths (`{{Death}}`), and chronology links. Issue pages are the better data source; filtering will be needed to keep scale manageable.
+
+**Fields reliably available for Comic Issues (10 sampled):**
+ReleaseDate, Month, Year, Editor-in-Chief, Image1, StoryTitle1, Writer/Penciler/Inker/Colorist/Letterer (per story), Appearing (character list with appearance tags), Synopsis, Quotation/Speaker, Notes, Trivia
+
+**The `Appearing` field is a relationship goldmine.** It categorizes characters as Featured/Supporting/Antagonist, tags first appearances and deaths, and uses wiki links that map directly to character page titles (natural foreign keys).
+
 ### Progress
 
 - [x] Category counts for all 4 entity types
@@ -105,7 +112,9 @@ Overview (intro blurb), Codenames, Nicknames, Ancestors, Siblings, Spouses, Chil
 - [x] Case study: Spider-Man variants (Peter Parker, Ai Apaec, William Braddock) — compared field coverage across popular vs. obscure pages
 - [x] Working multi-line infobox parser (handles `{{Clear}}`, continuation lines, nested bullet points)
 - [x] Sample JSON output for 9 characters
-- [ ] Comic entity discovery
+- [x] Comic discovery: explored category structure (series vs issues), decided on issues as primary entity
+- [x] Comic discovery: sampled series pages (12) and issue pages (10 iconic issues)
+- [ ] Comic fetch-sample finalized (may want more diverse samples beyond iconic issues)
 - [ ] Team entity discovery
 - [ ] Event entity discovery
 - [ ] Wikitext-to-clean-text parser
