@@ -19,7 +19,8 @@
 The following entities will be scraped, stored, and exposed via the API:
 
 - **Characters**
-- **Comics / Issues**
+- **Comic Issues**
+- **Comic Series**
 - **Teams / Groups**
 - **Story Events**
 
@@ -30,11 +31,12 @@ The following entities will be scraped, stored, and exposed via the API:
 | Category | Page Count |
 |---|---|
 | Characters | ~98,500 |
-| Comics | ~70,400 |
+| Comic Issues | ~70,400 |
+| Comic Series | ~569 |
 | Events | ~384 |
 | Teams | ~6,700 |
 
-> Characters and Comics will need filtering — most pages are extremely obscure. Events and Teams are manageable in full.
+> Characters and Comic Issues will need filtering — most pages are extremely obscure. Events, Teams, and Series are manageable in full.
 
 ---
 
@@ -49,9 +51,14 @@ The following entities will be scraped, stored, and exposed via the API:
 │   │   │   └── output/           # (gitignored) JSON dumps from case study scripts
 │   │   ├── character/            # Character entity discovery
 │   │   │   └── output/           # (gitignored) JSON dumps for sampled characters
-│   │   ├── comic/                # Comic entity discovery (TODO)
-│   │   ├── team/                 # Team entity discovery (TODO)
-│   │   └── event/                # Event entity discovery (TODO)
+│   │   ├── comic/                # Comic issue discovery
+│   │   │   └── output/           # (gitignored) JSON dumps for sampled issues
+│   │   ├── series/               # Comic series discovery
+│   │   │   └── output/           # (gitignored) JSON dumps for sampled series
+│   │   ├── team/                 # Team entity discovery
+│   │   │   └── output/           # (gitignored) JSON dumps for sampled teams
+│   │   └── event/                # Event entity discovery
+│   │       └── output/           # (gitignored) JSON dumps for sampled events
 │   ├── scrape-characters.js      # Full scrape scripts (Phase 3)
 │   ├── scrape-comics.js
 │   ├── scrape-teams.js
@@ -98,12 +105,15 @@ Overview (intro blurb), Codenames, Nicknames, Ancestors, Siblings, Spouses, Chil
 
 **Raw wikitext needs cleaning** — values contain wiki markup: `{{r|...}}` references, `{{Power|...}}` templates, `[[Link|Display Text]]` wiki links. A wikitext-to-clean-text parser will be needed before storing data.
 
-**Comics: individual issues over series.** The wiki has both series pages (~569) and individual issue pages (~70k). Series pages have limited data (format, status, featured character, creator lists). Issue pages are far richer: release date, per-story credits, full synopsis, and most importantly the `Appearing` field which lists every character in the issue with structured tags for first appearances (`{{1st}}`), deaths (`{{Death}}`), and chronology links. Issue pages are the better data source; filtering will be needed to keep scale manageable.
+**Comic Issues and Series are separate entities.** The wiki has both series pages (~569) and individual issue pages (~70k). Issues are the richer data source; series pages provide metadata about the run as a whole. Both are worth keeping as separate entities with a series→issues relationship.
 
 **Fields reliably available for Comic Issues (10 sampled):**
 ReleaseDate, Month, Year, Editor-in-Chief, Image1, StoryTitle1, Writer/Penciler/Inker/Colorist/Letterer (per story), Appearing (character list with appearance tags), Synopsis, Quotation/Speaker, Notes, Trivia
 
 **The `Appearing` field is a relationship goldmine.** It categorizes characters as Featured/Supporting/Antagonist, tags first appearances and deaths, and uses wiki links that map directly to character page titles (natural foreign keys).
+
+**Fields available for Comic Series (12 sampled):**
+Format, status, featured character, creator lists. More limited than issues but useful as a grouping entity. Issue page titles embed the series name (e.g., `Amazing Spider-Man Vol 1 300` belongs to `Amazing Spider-Man Vol 1`), providing a natural series→issue relationship.
 
 **Teams: flat category, rich infobox, inline member lists.** All ~6,692 team pages live flat under `Category:Teams` (6 subcategories: by Status, Type, Identity, Reality, Unseen, Year of Debut). Pages follow the `Name (Earth-616)` convention. Infobox fields are consistent across popular and obscure teams.
 
@@ -154,8 +164,9 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Case study: Spider-Man variants (Peter Parker, Ai Apaec, William Braddock) — compared field coverage across popular vs. obscure pages
 - [x] Working multi-line infobox parser (handles `{{Clear}}`, continuation lines, nested bullet points)
 - [x] Sample JSON output for 9 characters
-- [x] Comic discovery: explored category structure (series vs issues), decided on issues as primary entity
-- [x] Comic discovery: sampled series pages (12) and issue pages (10 iconic issues)
+- [x] Comic discovery: explored category structure, separated issues and series as distinct entities
+- [x] Comic issue discovery: sampled 10 iconic issues
+- [x] Comic series discovery: sampled 12 series pages
 - [x] Team discovery: explored category structure (flat, 6 subcategories)
 - [x] Team discovery: sampled 14 teams (6 popular, 4 mid-tier, 4 obscure), field frequency analysis
 - [x] Team discovery: identified relationship fields (members→characters, first/last→issues, allies/enemies)
@@ -163,7 +174,8 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Event discovery: explored category structure (~384 pages, 425 subcategories, no Earth-616 suffix)
 - [x] Event discovery: sampled 14 events (6 major crossovers, 4 mid-tier, 4 obscure), field frequency analysis
 - [x] Event discovery: identified relationship fields (protagonists/antagonists→characters+teams, PartN→ordered reading list, tie-ins)
-- [ ] Comic fetch-sample finalized (may want more diverse samples beyond iconic issues)
+- [ ] Comic issue fetch-sample: add mid-tier/obscure issues to validate field coverage beyond iconic ones
+- [ ] Comic series fetch-sample: field frequency analysis (like teams/events)
 - [ ] Wikitext-to-clean-text parser
 
 ---
