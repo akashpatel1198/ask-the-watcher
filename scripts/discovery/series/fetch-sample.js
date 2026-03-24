@@ -1,5 +1,6 @@
 import axios from "axios";
 import { writeFile, mkdir } from "fs/promises";
+import { parseInfobox } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/series/output";
@@ -26,33 +27,6 @@ const series = [
     "Sleepwalker Vol 1",
     "Darkhawk Vol 1",
 ];
-
-function parseInfobox(wikitext) {
-    const fields = {};
-    let currentField = null;
-
-    for (const line of wikitext.split("\n")) {
-        const fieldMatch = line.match(/^\|\s*(.+?)\s*=\s*(.*)/);
-        if (fieldMatch) {
-            currentField = fieldMatch[1];
-            const value = fieldMatch[2].trim();
-            fields[currentField] = value;
-        } else if (currentField) {
-            if (line.match(/^\}\}\s*$/)) {
-                currentField = null;
-            } else {
-                fields[currentField] += "\n" + line;
-            }
-        }
-    }
-
-    for (const key of Object.keys(fields)) {
-        fields[key] = fields[key].replace(/^\{\{[Cc]lear\}\}\s*/, "").trim();
-        if (!fields[key]) delete fields[key];
-    }
-
-    return fields;
-}
 
 // Track field frequency across all sampled series
 const fieldCounts = {};

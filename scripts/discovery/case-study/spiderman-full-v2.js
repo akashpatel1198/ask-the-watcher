@@ -1,5 +1,6 @@
 import axios from "axios";
 import { writeFile, mkdir } from "fs/promises";
+import { parseInfobox } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/case-study/output";
@@ -10,34 +11,6 @@ const characters = [
     "Ai Apaec (Earth-616)",
     "William Braddock (Earth-833)",
 ];
-
-function parseInfobox(wikitext) {
-    const fields = {};
-    let currentField = null;
-
-    for (const line of wikitext.split("\n")) {
-        // new field starts with "| FieldName ="
-        const fieldMatch = line.match(/^\|\s*(.+?)\s*=\s*(.*)/);
-        if (fieldMatch) {
-            currentField = fieldMatch[1];
-            const value = fieldMatch[2].trim();
-            fields[currentField] = value;
-        } else if (currentField && (line.startsWith("*") || line.startsWith("**"))) {
-            // continuation line (bullet points belonging to current field)
-            fields[currentField] += "\n" + line;
-        } else if (line.match(/^\}\}/) || line.match(/^\|/)) {
-            // end of field or template boundary
-            currentField = null;
-        }
-    }
-
-    // remove empty fields
-    for (const key of Object.keys(fields)) {
-        if (!fields[key].trim()) delete fields[key];
-    }
-
-    return fields;
-}
 
 for (const page of characters) {
     console.log(`Fetching ${page}...`);

@@ -189,7 +189,20 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Event discovery: identified relationship fields (protagonists/antagonists→characters+teams, PartN→ordered reading list, tie-ins)
 - [x] Comic issue fetch-sample: added mid-tier/obscure issues (16 total), field frequency analysis — core fields hold at 100% across popular and obscure
 - [x] Comic series fetch-sample: sampled 16 series (12 major + 4 mid-tier/obscure), field frequency analysis — 6 core metadata fields, rest is creator rosters
-- [ ] Wikitext-to-clean-text parser
+- [x] Wikitext-to-clean-text parser (`lib/scraper-utils.js` → `cleanWikitext()`)
+- [ ] Per-entity cleaner testing (character done, comic/event/series/team remaining)
+
+### Wikitext Cleaner — Findings from Character Testing
+
+**Empty-string fields after cleaning are expected and harmless.** Two categories:
+
+1. **`*Ref` fields (`NameRef`, `CurrentAliasRef`, `CharRef`)** — These are wiki-internal citation fields. Their entire content is `<ref>` tags and `{{r|...}}` templates pointing to which comic first used a name. The actual names live in `Name`, `CurrentAlias`, etc. These `*Ref` fields carry no display content and won't map to any API field — they can be dropped during schema design in Phase 2.
+
+2. **`{{Navigation` / `{{MessageBox`-only fields** — Some fields (Powers, Weaknesses, Equipment, etc.) contain only a leaked wiki page-layout template. These are navigation chrome or editor notices on the wiki page, not entity data. The real content for these fields lives in other characters' pages; these specific characters just don't have data for that field beyond the layout block. Safe to drop.
+
+~~**Known upstream issue: `{{MessageBox}}` splitting across fields.** The infobox parser captures `{{MessageBox` as a field value (e.g., `History`) and its closing `}}` bleeds into the next field (`Message`), leaving a stray `}}` artifact. This is a `parseInfobox` issue to fix when the parser is refactored into a shared utility in Phase 3 — not a cleaner issue.~~
+
+**RESOLVED:** `parseInfobox` refactored into `lib/scraper-utils.js` as a shared function. Now strips `{{Navigation`/`{{MessageBox` fragments and stray `}}` during parsing. All 6 discovery scripts updated to import from shared util instead of defining inline copies.
 
 ---
 

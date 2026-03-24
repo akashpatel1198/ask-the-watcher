@@ -1,5 +1,6 @@
 import axios from "axios";
 import { writeFile, mkdir } from "fs/promises";
+import { parseInfobox } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/character/output";
@@ -16,37 +17,6 @@ const characters = [
     "James Howlett (Earth-616)",
     "Scott Summers (Earth-616)",
 ];
-
-function parseInfobox(wikitext) {
-    const fields = {};
-    let currentField = null;
-
-    for (const line of wikitext.split("\n")) {
-        // new field: "| FieldName = ..."
-        const fieldMatch = line.match(/^\|\s*(.+?)\s*=\s*(.*)/);
-        if (fieldMatch) {
-            currentField = fieldMatch[1];
-            const value = fieldMatch[2].trim();
-            fields[currentField] = value;
-        } else if (currentField) {
-            // keep appending any line that isn't the start of a new field
-            // stop on lines that are just "}}" (end of template)
-            if (line.match(/^\}\}\s*$/)) {
-                currentField = null;
-            } else {
-                fields[currentField] += "\n" + line;
-            }
-        }
-    }
-
-    // clean up: trim values, remove empty ones, strip {{Clear}} artifacts
-    for (const key of Object.keys(fields)) {
-        fields[key] = fields[key].replace(/^\{\{[Cc]lear\}\}\s*/, "").trim();
-        if (!fields[key]) delete fields[key];
-    }
-
-    return fields;
-}
 
 for (const page of characters) {
     console.log(`Fetching ${page}...`);
