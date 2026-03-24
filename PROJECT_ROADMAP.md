@@ -112,8 +112,21 @@ ReleaseDate, Month, Year, Editor-in-Chief, Image1, StoryTitle1, Writer/Penciler/
 
 **The `Appearing` field is a relationship goldmine.** It categorizes characters as Featured/Supporting/Antagonist, tags first appearances and deaths, and uses wiki links that map directly to character page titles (natural foreign keys).
 
-**Fields available for Comic Series (12 sampled):**
-Format, status, featured character, creator lists. More limited than issues but useful as a grouping entity. Issue page titles embed the series name (e.g., `Amazing Spider-Man Vol 1 300` belongs to `Amazing Spider-Man Vol 1`), providing a natural series→issue relationship.
+**Comic Series are a lightweight grouping entity.** Series pages (~569) use a different infobox template from issues. The bulk of their fields are numbered creator lists (`writer1`/`writer1_issues`, `penciler1`/`penciler1_issues`, etc.) — long-running series can have 100+ fields just from creator rosters. The core metadata is slim but useful.
+
+**Fields reliably available for Comic Series (16 sampled — mix of major + mid-tier + obscure):**
+volume_logo, format (ongoing/limited/one-shot/etc.), type, status (finished/active), genres, featured (main character — wiki link)
+
+**Fields commonly available:**
+writerN/writerN_issues, pencilerN/pencilerN_issues (numbered creator rosters with issue ranges), partN/partN_above (era/run divisions)
+
+**Fields sometimes available:**
+Notes, Accolades, year, SeeAlso, PreviousVol
+
+**Key relationship fields for Comic Series:**
+- `featured` → character wiki link — series↔character relationship (which character headlines the series).
+- Series→issue relationship is derived from naming convention: issue page titles embed the series name (e.g., `Amazing Spider-Man Vol 1 300` belongs to `Amazing Spider-Man Vol 1`).
+- Per-issue creator credits are richer on issue pages than the series-level creator roster — issue pages should be the primary source for credits.
 
 **Teams: flat category, rich infobox, inline member lists.** All ~6,692 team pages live flat under `Category:Teams` (6 subcategories: by Status, Type, Identity, Reality, Unseen, Year of Debut). Pages follow the `Name (Earth-616)` convention. Infobox fields are consistent across popular and obscure teams.
 
@@ -174,8 +187,8 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Event discovery: explored category structure (~384 pages, 425 subcategories, no Earth-616 suffix)
 - [x] Event discovery: sampled 14 events (6 major crossovers, 4 mid-tier, 4 obscure), field frequency analysis
 - [x] Event discovery: identified relationship fields (protagonists/antagonists→characters+teams, PartN→ordered reading list, tie-ins)
-- [ ] Comic issue fetch-sample: add mid-tier/obscure issues to validate field coverage beyond iconic ones
-- [ ] Comic series fetch-sample: field frequency analysis (like teams/events)
+- [x] Comic issue fetch-sample: added mid-tier/obscure issues (16 total), field frequency analysis — core fields hold at 100% across popular and obscure
+- [x] Comic series fetch-sample: sampled 16 series (12 major + 4 mid-tier/obscure), field frequency analysis — 6 core metadata fields, rest is creator rosters
 - [ ] Wikitext-to-clean-text parser
 
 ---

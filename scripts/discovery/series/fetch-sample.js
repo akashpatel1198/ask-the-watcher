@@ -2,29 +2,29 @@ import axios from "axios";
 import { writeFile, mkdir } from "fs/promises";
 
 const API_URL = "https://marvel.fandom.com/api.php";
-const OUT_DIR = "scripts/discovery/comic/output";
+const OUT_DIR = "scripts/discovery/series/output";
 await mkdir(OUT_DIR, { recursive: true });
 
-const issues = [
-    // Iconic / landmark issues
-    "Amazing Fantasy Vol 1 15",
-    "Amazing Spider-Man Vol 1 300",
-    "X-Men Vol 1 137",
-    "Incredible Hulk Vol 1 181",
-    "Giant-Size X-Men Vol 1 1",
-    "Avengers Vol 1 1",
-    "Fantastic Four Vol 1 1",
-    "Iron Man Vol 1 128",
-    "X-Men Vol 1 1",
-    "Marvel Super Heroes Secret Wars Vol 1 8",
-    // Mid-tier
-    "New Mutants Vol 1 98",
-    "Avengers Vol 1 57",
-    "Daredevil Vol 1 168",
-    // Obscure / lesser-known
-    "Sleepwalker Vol 1 2",
-    "Darkhawk Vol 1 1",
-    "Slingers Vol 1 1",
+const series = [
+    // Major long-running series
+    "Amazing Spider-Man Vol 1",
+    "Uncanny X-Men Vol 1",
+    "Avengers Vol 1",
+    "Fantastic Four Vol 1",
+    "Incredible Hulk Vol 1",
+    "Iron Man Vol 1",
+    "Thor Vol 1",
+    "Captain America Vol 1",
+    "X-Men Vol 1",
+    "Daredevil Vol 1",
+    "New Mutants Vol 1",
+    "Secret Wars Vol 1",
+    // Mid-tier / shorter runs
+    "Moon Knight Vol 1",
+    "Power Pack Vol 1",
+    // Obscure / limited series
+    "Sleepwalker Vol 1",
+    "Darkhawk Vol 1",
 ];
 
 function parseInfobox(wikitext) {
@@ -54,11 +54,11 @@ function parseInfobox(wikitext) {
     return fields;
 }
 
-// Track field frequency across all sampled issues
+// Track field frequency across all sampled series
 const fieldCounts = {};
 let successCount = 0;
 
-for (const page of issues) {
+for (const page of series) {
     console.log(`Fetching ${page}...`);
 
     try {
@@ -85,7 +85,7 @@ for (const page of issues) {
 }
 
 // Print field frequency summary
-console.log(`\n=== Field Frequency (across ${successCount} issues) ===\n`);
+console.log(`\n=== Field Frequency (across ${successCount} series) ===\n`);
 const sorted = Object.entries(fieldCounts).sort((a, b) => b[1] - a[1]);
 for (const [field, count] of sorted) {
     const pct = Math.round((count / successCount) * 100);
