@@ -7,10 +7,11 @@
 | Language | Node.js (ESM) |
 | Data Source | MediaWiki API (`marvel.fandom.com/api.php`) |
 | HTTP Client | `axios` |
-| Database | Supabase (Free → Hobby Tier) |
+| Database | SQLite via `better-sqlite3` (local `.db` file) |
 | API Framework | NestJS |
 | API Docs | `@nestjs/swagger` (Swagger UI) |
 | Auth | API Key (via NestJS Guard) |
+| Rate Limiting | `@nestjs/throttler` |
 
 ---
 
@@ -36,7 +37,7 @@ The following entities will be scraped, stored, and exposed via the API:
 | Events | ~384 |
 | Teams | ~6,700 |
 
-> Characters and Comic Issues will need filtering — most pages are extremely obscure. Events, Teams, and Series are manageable in full.
+> **Target: "Ambitious" tier** — ~10,000 characters + ~20,000 comic issues + all teams/series/events. Estimated DB file size: **~1 GB** on disk (including indexes). Characters and Comic Issues need filtering; the rest are kept in full.
 
 ---
 
@@ -67,7 +68,9 @@ The following entities will be scraped, stored, and exposed via the API:
 │   └── data/                     # (gitignored) JSON output from scrape scripts
 ├── lib/
 │   ├── scraper-utils.js
-│   └── supabase.js
+│   └── db.js                     # Shared SQLite client (better-sqlite3)
+├── data/
+│   └── marvel.db                 # (gitignored) SQLite database file
 ├── src/                          # NestJS API (Phase 4)
 │   ├── characters/
 │   ├── comics/
@@ -190,7 +193,7 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Comic issue fetch-sample: added mid-tier/obscure issues (16 total), field frequency analysis — core fields hold at 100% across popular and obscure
 - [x] Comic series fetch-sample: sampled 16 series (12 major + 4 mid-tier/obscure), field frequency analysis — 6 core metadata fields, rest is creator rosters
 - [x] Wikitext-to-clean-text parser (`lib/scraper-utils.js` → `cleanWikitext()`)
-- [ ] Per-entity cleaner testing (character done, comic/event/series/team remaining)
+- [x] Per-entity cleaner testing — all 5 entities pass with 0 flagged (character, comic, event, series, team)
 
 ### Wikitext Cleaner — Findings from Character Testing
 
@@ -206,47 +209,66 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 ---
 
-## Phase 2 — Schema Design + Supabase Setup
+## Phase 2 — Schema Design + SQLite Setup
 
-> Goal: Design a relational DB schema informed by Phase 1 findings, set up Supabase, and validate the schema.
+> Goal: Design a relational DB schema informed by Phase 1 findings, set up SQLite, and validate the schema.
+
+### Database Choice: SQLite
+
+**Why SQLite over Supabase/Postgres:**
+- The API is read-heavy (scrape once, serve forever) — SQLite's ideal use case
+- No storage limits — local file on disk, no free-tier constraints
+- No network latency for queries — direct file reads
+- Zero cost, zero external dependencies
+- Estimated DB size: ~1 GB for the "Ambitious" target (10k characters, 20k comics, all others)
+
+**Hosting:** Deploy the NestJS API + `.db` file together on a host with persistent disk (Fly.io, Railway, or a $4/mo VPS).
 
 ### Steps
 
 1. **Design schema based on discovery data**
    - Pick final fields per entity
    - Define relationships (character ↔ team, character ↔ comic, event ↔ comic, etc.)
-   - Account for Supabase free tier limits (500MB DB)
+   - Design join tables for rich relationship fields (Appearing, members, protagonists, reading order)
 
-2. **Create Supabase project**
-   - Store `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.env`
+2. **Install `better-sqlite3`**
+   - `npm install better-sqlite3`
+   - Shared `lib/db.js` client
 
-3. **Install Supabase JS SDK**
-   - `npm install @supabase/supabase-js`
-   - Shared `lib/supabase.js` client
+3. **Write schema migration script**
+   - `scripts/setup-db.js` — creates tables, indexes, and join tables
+   - Outputs to `data/marvel.db` (gitignored)
 
 4. **Write connection test script**
    - `scripts/test-connection.js`
-   - Confirms schema + credentials are working
+   - Confirms schema is created and queryable
 
 ---
 
 ## Phase 3 — Full Scrape + DB Seed
 
-> Goal: Run production scrapes across all entity categories and load clean data into Supabase.
+> Goal: Run production scrapes across all entity categories and load clean data into SQLite.
+
+### Target Counts ("Ambitious" Tier)
+
+| Entity | Target | Strategy |
+|---|---|---|
+| Characters | ~10,000 | Filter by field completeness, appearance count, or category membership |
+| Comic Issues | ~20,000 | Filter by notable series, or issues with rich Appearing data |
+| Comic Series | all ~569 | Keep all |
+| Teams | all ~6,700 | Keep all |
+| Events | all ~384 | Keep all |
 
 ### Steps
 
-1. **Build wikitext-to-clean-text parser**
-   - Strip `{{r|...}}` references
-   - Resolve `[[Link|Display Text]]` wiki links to display text
-   - Extract power names from `{{Power|...}}` templates
-   - Handle nested templates and edge cases
+1. ~~**Build wikitext-to-clean-text parser**~~ *(done in Phase 1 — `cleanWikitext()` in `lib/scraper-utils.js`)*
 
 2. **Decide filtering strategy per entity**
-   - Characters (~98k): filter by field completeness, number of appearances, or curated lists
-   - Comics (~70k): possibly track series rather than individual issues, or filter by notable series
-   - Events (~384): likely keep all
-   - Teams (~6.7k): likely keep most
+   - Characters (~98k → 10k): filter by field completeness, number of appearances, or curated lists
+   - Comics (~70k → 20k): filter by notable series, issues with rich data, or appearance significance
+   - Events (~384): keep all
+   - Teams (~6.7k): keep all
+   - Series (~569): keep all
 
 3. **Write full scrape scripts**
    - Paginate through category pages to collect all entity URLs
@@ -259,30 +281,36 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 5. **Write `seed-db.js`**
    - Reads from JSON output
-   - Upserts into Supabase using wiki page title as unique key
+   - Inserts into SQLite using wiki page title as unique key
    - Populates join tables after core tables
 
 6. **Validate data**
-   - Spot check entities and relationships in Supabase dashboard
+   - Spot check entities and relationships via SQLite queries
 
 ---
 
 ## Phase 4 — NestJS API
 
-> Goal: Expose the Supabase data via a clean RESTful API with Swagger docs and API key auth.
+> Goal: Expose the SQLite data via a clean RESTful API with Swagger docs, API key auth, and rate limiting.
 
 ### Steps
 
 1. **Scaffold NestJS project**
 
-2. **Supabase service**
-   - Shared `SupabaseService` injectable
+2. **SQLite service**
+   - Shared `DatabaseService` injectable wrapping `better-sqlite3`
+   - Reads from `data/marvel.db`
 
 3. **API key auth**
-   - NestJS `Guard` checking `x-api-key` header
+   - `api_keys` table in SQLite: `(id, key_hash, user_email, created_at, tier)`
+   - NestJS `Guard` checking `x-api-key` header, hashes and looks up in DB
    - Return `401` on missing/invalid key
 
-4. **Feature modules** (one per entity)
+4. **Rate limiting**
+   - `@nestjs/throttler` — in-memory, per-key limits
+   - Tier-based: e.g., free = 100 req/min, paid = 1000 req/min
+
+5. **Feature modules** (one per entity)
 
    Each module gets: `module`, `controller`, `service`
 
@@ -307,11 +335,11 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
    GET /events/:id/comics       # Comics in the event
    ```
 
-5. **Swagger setup**
+6. **Swagger setup**
    - Swagger UI at `/api/docs`
    - All endpoints testable in browser
 
-6. **Pagination**
+7. **Pagination**
    - `?page=` and `?limit=` query params
    - Default limit: 20, max: 100
 
@@ -319,8 +347,8 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 ## Out of Scope (for now)
 
-- Write endpoints (API is read-only)
+- Write endpoints (API is read-only, except API key registration)
 - Image hosting / CDN (store URLs only)
 - Scheduled re-scraping / auto-updates
-- Rate limiting on the API itself
-- Deployment (Supabase handles the DB; NestJS can be deployed separately later)
+- Multi-server deployment (SQLite is single-server; upgrade to Turso if needed later)
+- User-facing registration UI (API keys issued manually or via admin endpoint)
