@@ -226,22 +226,58 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 ### Steps
 
-1. **Design schema based on discovery data**
-   - Pick final fields per entity
-   - Define relationships (character ↔ team, character ↔ comic, event ↔ comic, etc.)
-   - Design join tables for rich relationship fields (Appearing, members, protagonists, reading order)
+1. **Add image URL support**
+   - New `resolveImageUrl()` function in `lib/scraper-utils.js` — resolves wiki image filenames to full CDN URLs via MediaWiki `action=query&prop=imageinfo` API
+   - Update `fetch-sample.js` scripts per entity to pull infobox images (`Image` or `Image1` field depending on entity)
+   - Each entity schema will include an `image_url` column
 
-2. **Install `better-sqlite3`**
+2. **Design schema per entity** (one at a time)
+   - Go through each entity's discovery data, pick fields to keep vs. drop
+   - Output `schema/{entity}.json` files with column definitions, types, and notes on dropped fields
+   - Entity order: characters → comics → series → teams → events
+   - Each schema includes `image_url` from step 1
+
+3. **Beta scripts per entity** — validate schema shape before building real scraper
+   - Each entity gets a `beta-script.js` in its discovery directory
+   - Full pipeline in one script: fetch from wiki → parse infobox → resolve image → clean via `cleanWikitext()` → map to schema columns → output `beta_*.json` files
+   - Uses the same hardcoded sample pages from discovery (not full category scrape)
+   - Output files are DB-ready rows — validates the schema works end-to-end
+   - Cleaner issues found during beta testing are fixed in `cleanWikitext()` (e.g., wiki section headers `===`, `thumb|` image tags, `[[Category:]]` tags, orphaned `]]` brackets were all caught and fixed this way)
+
+4. **Design join tables**
+   - After all 5 entity schemas are finalized, define the relationship/join tables
+   - character ↔ team, character ↔ comic, character ↔ event, comic ↔ event, comic ↔ series, character ↔ series
+
+5. **Install `better-sqlite3`**
    - `npm install better-sqlite3`
    - Shared `lib/db.js` client
 
-3. **Write schema migration script**
+6. **Write schema migration script**
    - `scripts/setup-db.js` — creates tables, indexes, and join tables
    - Outputs to `data/marvel.db` (gitignored)
 
-4. **Write connection test script**
+7. **Write connection test script**
    - `scripts/test-connection.js`
    - Confirms schema is created and queryable
+
+### Progress
+
+- [x] Image URL support added to `lib/scraper-utils.js` and character `fetch-sample.js`
+- [x] Character schema designed (`schema/characters.json` — 36 columns, Option C)
+- [x] Character beta script (`scripts/discovery/character/beta-script.js`) — 9 samples validated, all clean
+- [x] Cleaner fixes: wiki section headers, `thumb|` tags, `[[Category:]]` tags, orphaned `]]`
+- [ ] Comic schema
+- [ ] Comic beta script
+- [ ] Series schema
+- [ ] Series beta script
+- [ ] Team schema
+- [ ] Team beta script
+- [ ] Event schema
+- [ ] Event beta script
+- [ ] Join table design
+- [ ] Install `better-sqlite3` + `lib/db.js`
+- [ ] Schema migration script
+- [ ] Connection test script
 
 ---
 
