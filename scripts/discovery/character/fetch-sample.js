@@ -1,6 +1,6 @@
 import axios from "axios";
 import { writeFile, mkdir } from "fs/promises";
-import { parseInfobox } from "../../../lib/scraper-utils.js";
+import { parseInfobox, resolveImageUrl, delay } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/character/output";
@@ -26,6 +26,14 @@ for (const page of characters) {
     });
     const wikitext = res.data.parse.wikitext["*"];
     const infobox = parseInfobox(wikitext);
+
+    // Resolve infobox image to full CDN URL
+    const imageField = infobox.Image || infobox.Image1;
+    if (imageField) {
+      const imageUrl = await resolveImageUrl(imageField);
+      if (imageUrl) infobox.ImageUrl = imageUrl;
+      await delay();
+    }
 
     const filename = page.replace(/[\s()]/g, "_").replace(/_+/g, "_");
     const path = `${OUT_DIR}/${filename}.json`;

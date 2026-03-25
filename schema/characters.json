@@ -1,0 +1,263 @@
+{
+  "_meta": "Character entity schema — based on Option C from discovery analysis (9 sampled characters)",
+
+  "table": "characters",
+
+  "columns": {
+    "_meta": "Fields are grouped by purpose. 'nullable' means the field is not present on all characters.",
+
+    "id": {
+      "type": "INTEGER PRIMARY KEY",
+      "description": "Auto-increment ID"
+    },
+    "wiki_page_title": {
+      "type": "TEXT UNIQUE NOT NULL",
+      "description": "Original wiki page title — used as the unique key for upserts (e.g., 'Peter_Parker_(Earth-616)')"
+    },
+
+    "_section_identity": "--- Core Identity ---",
+
+    "name": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full real name (e.g., 'Peter Benjamin Parker')",
+      "frequency": "3/9 — not all characters have a separate Name field"
+    },
+    "current_alias": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Primary superhero/villain name (e.g., 'Spider-Man')"
+    },
+    "aliases": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of alternative names",
+      "frequency": "9/9"
+    },
+    "codenames": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of heroic/villain code names",
+      "frequency": "7/9"
+    },
+    "nicknames": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of informal names",
+      "frequency": "7/9"
+    },
+    "editorial_names": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of comic series/publication names featuring the character",
+      "frequency": "7/9"
+    },
+
+    "_section_bio": "--- Biographical ---",
+
+    "overview": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Brief summary paragraph about the character",
+      "frequency": "9/9"
+    },
+    "history": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full narrative history — can be very long for major characters, short or absent for obscure ones",
+      "frequency": "8/9"
+    },
+    "personality": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Description of character's personality traits",
+      "frequency": "8/9"
+    },
+    "origin": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Species/background (e.g., 'Human', 'Human Mutant', 'Asgardian')",
+      "frequency": "9/9"
+    },
+    "identity": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Secret identity status (e.g., 'Secret Identity', 'Public Identity')"
+    },
+    "gender": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Character's gender"
+    },
+    "place_of_birth": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Location where character was born",
+      "frequency": "9/9"
+    },
+    "occupation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Current and past occupations/roles",
+      "frequency": "8/9"
+    },
+    "education": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Educational background",
+      "frequency": "8/9"
+    },
+    "base_of_operations": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Primary location(s) where character operates",
+      "frequency": "9/9"
+    },
+
+    "_section_powers": "--- Powers & Abilities ---",
+
+    "powers": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of superpowers",
+      "frequency": "7/9"
+    },
+    "abilities": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Detailed description of skills and abilities",
+      "frequency": "9/9"
+    },
+    "weaknesses": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Known weaknesses and vulnerabilities",
+      "frequency": "7/9"
+    },
+    "unusual_features": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Distinctive physical features",
+      "frequency": "5/9"
+    },
+
+    "_section_equipment": "--- Equipment ---",
+
+    "equipment": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Gear, devices, technology character uses",
+      "frequency": "8/9"
+    },
+    "weapons": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Weapons character uses or wields",
+      "frequency": "5/9"
+    },
+    "transportation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Vehicles and means of transport",
+      "frequency": "8/9"
+    },
+
+    "_section_family": "--- Family ---",
+
+    "parents": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of parents",
+      "frequency": "9/9"
+    },
+    "children": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of children",
+      "frequency": "8/9"
+    },
+    "siblings": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of siblings",
+      "frequency": "6/9"
+    },
+    "spouses": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of spouses",
+      "frequency": "6/9"
+    },
+    "relatives": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of extended family members",
+      "frequency": "9/9"
+    },
+
+    "_section_misc": "--- Misc ---",
+
+    "impersonations": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Characters/identities this character has impersonated",
+      "frequency": "8/9"
+    },
+    "quotation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Notable quote from or about the character",
+      "frequency": "8/9"
+    },
+    "quotation_speaker": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Who said the quotation (often the character themselves)"
+    },
+    "trivia": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of interesting facts",
+      "frequency": "9/9"
+    },
+    "notes": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of additional notes",
+      "frequency": "8/9"
+    }
+  },
+
+  "dropped_fields": {
+    "_meta": "Fields from discovery that are intentionally excluded from the schema",
+
+    "name_ref": "Citation for character name — wiki-internal, no display value",
+    "current_alias_ref": "Citation for current alias — wiki-internal, no display value",
+    "char_ref": "Citation for character creation — wiki-internal, no display value",
+    "ancestors": "Deep genealogy — niche, 7/9 frequency but low API value",
+    "descendants": "Deep genealogy — only 3/9",
+    "grandparents": "Deep genealogy — niche",
+    "in_law": "Deep genealogy — only 4/9",
+    "clones": "Niche — 9/9 frequency but very specialized",
+    "host_of": "Niche — symbiote/entity hosting",
+    "hosts": "Niche — only 1/9",
+    "pets": "Niche — only 4/9",
+    "cause_of_death": "Spoiler-heavy, niche — 9/9 but questionable API value",
+    "place_of_death": "Niche — only 1/9",
+    "links": "External reference links — not structured data",
+    "citizenship": "Rare — only 1/9",
+    "marital_status": "Rare — only 1/9",
+    "titles": "Rare — only 1/9",
+    "body": "Rare — only 1/9, unclear field",
+    "first2": "Secondary first appearance ref — rare, 3/9",
+    "creators2": "Secondary creator ref — rare, 1/9",
+    "identity2": "Secondary identity — rare, 1/9"
+  },
+
+  "relationships": {
+    "_meta": "These will be handled by join tables — defined separately after all entity schemas are finalized",
+    "character_teams": "From Affiliation field + team member lists → join table with role (current/former/leader)",
+    "character_comics": "From Appearing field on comics → join table with role (featured/supporting/antagonist)",
+    "character_events": "From Protagonists/Antagonists/Others on events → join table with role"
+  }
+}
