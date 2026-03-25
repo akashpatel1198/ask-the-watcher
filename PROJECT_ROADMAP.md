@@ -253,38 +253,70 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 | Entity | Target | Strategy |
 |---|---|---|
-| Characters | ~10,000 | Filter by field completeness, appearance count, or category membership |
-| Comic Issues | ~20,000 | Filter by notable series, or issues with rich Appearing data |
-| Comic Series | all ~569 | Keep all |
-| Teams | all ~6,700 | Keep all |
-| Events | all ~384 | Keep all |
+| Comic Series | all ~569 | Keep all — scrape first |
+| Events | all ~384 | Keep all — scrape first |
+| Teams | all ~6,700 | Keep all — scrape first |
+| Comic Issues | ~20,000 (cap) | Filtered + ranked — scrape after small entities |
+| Characters | ~10,000 (cap) | Filtered + ranked — scrape last |
+
+### Scrape Order & Filtering Strategy
+
+Small entities are scraped first. Their relationship data informs which characters and comics to keep.
+
+**Step 1 — Scrape small entities (no filtering needed)**
+1. Comic Series (all ~569)
+2. Events (all ~384) → extracts `Part1`–`PartN`, `TieIns` → **builds issue inclusion list**
+3. Teams (all ~6,700) → extracts `CurrentMembers`, `FormerMembers` → **builds character inclusion list**
+
+**Step 2 — Scrape comics (two-pass filter, 20k cap)**
+- **Pass 1 — Relationship-based inclusion:** Keep any issue that is:
+  - Referenced by an event (`PartN`, `TieIns`, `First`/`Last`)
+  - Part of a top series (rank series by issue count, keep top 100–150)
+  - Contains `{{1st|...}}` first appearance tags or `{{Death|...}}` tags in `Appearing`
+- **Pass 2 — Quality-based cap:** If Pass 1 yields >20k, rank remaining by wikitext length (available from API before full parse) and cut from the bottom.
+- After scraping, extract all character wiki links from `Appearing` fields → **adds to character inclusion list**
+
+**Step 3 — Scrape characters (two-pass filter, 10k cap)**
+- **Pre-filter:** Earth-616 only (~98k → ~40k)
+- **Pass 1 — Relationship-based inclusion:** Keep any character that is:
+  - A team member (from Step 1 team data)
+  - An event protagonist/antagonist/other (from Step 1 event data)
+  - Referenced in comic `Appearing` fields (from Step 2)
+- **Pass 2 — Quality-based cap:** If Pass 1 yields >10k, rank remaining by wikitext length or infobox field count and cut from the bottom.
 
 ### Steps
 
 1. ~~**Build wikitext-to-clean-text parser**~~ *(done in Phase 1 — `cleanWikitext()` in `lib/scraper-utils.js`)*
 
-2. **Decide filtering strategy per entity**
-   - Characters (~98k → 10k): filter by field completeness, number of appearances, or curated lists
-   - Comics (~70k → 20k): filter by notable series, issues with rich data, or appearance significance
-   - Events (~384): keep all
-   - Teams (~6.7k): keep all
-   - Series (~569): keep all
-
-3. **Write full scrape scripts**
+2. **Scrape small entities** (series, events, teams)
    - Paginate through category pages to collect all entity URLs
-   - Apply filters
    - Parse and clean data
+   - Extract relationship references (event→issues, team→characters)
    - Output to JSON
 
-4. **Add resumability**
+3. **Scrape comics** (filtered, 20k cap)
+   - Build inclusion list from event references + top series
+   - Scrape included issues, parse and clean
+   - Apply quality-based cap if over 20k
+   - Extract character references from `Appearing` fields
+   - Output to JSON
+
+4. **Scrape characters** (filtered, 10k cap)
+   - Build inclusion list from team members + event characters + comic appearances
+   - Filter to Earth-616 only
+   - Scrape included characters, parse and clean
+   - Apply quality-based cap if over 10k
+   - Output to JSON
+
+5. **Add resumability**
    - Track scraped URLs to allow restart without re-fetching
 
-5. **Write `seed-db.js`**
+6. **Write `seed-db.js`**
    - Reads from JSON output
    - Inserts into SQLite using wiki page title as unique key
    - Populates join tables after core tables
 
-6. **Validate data**
+7. **Validate data**
    - Spot check entities and relationships via SQLite queries
 
 ---
