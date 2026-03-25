@@ -15,6 +15,12 @@
       "description": "Original wiki page title — used as the unique key for upserts (e.g., 'Peter_Parker_(Earth-616)')"
     },
 
+    "image_url": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full CDN URL for the character's infobox image, resolved from wiki Image field via MediaWiki imageinfo API"
+    },
+
     "_section_identity": "--- Core Identity ---",
 
     "name": {
