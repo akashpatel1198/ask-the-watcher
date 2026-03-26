@@ -1,0 +1,209 @@
+{
+  "_meta": "Comic entity schema — based on discovery analysis (16 sampled comics)",
+
+  "table": "comics",
+
+  "columns": {
+    "_meta": "Fields are grouped by purpose. 'nullable' means the field is not present on all comics.",
+
+    "id": {
+      "type": "INTEGER PRIMARY KEY",
+      "description": "Auto-increment ID"
+    },
+    "wiki_page_title": {
+      "type": "TEXT UNIQUE NOT NULL",
+      "description": "Original wiki page title — used as the unique key for upserts (e.g., 'Amazing_Spider-Man_Vol_1_300')"
+    },
+
+    "image_url": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full CDN URL for the primary cover image, resolved from wiki Image1 field via MediaWiki imageinfo API"
+    },
+
+    "_section_publication": "--- Publication ---",
+
+    "release_date": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full release date string (e.g., 'January 12, 1988')",
+      "frequency": "10/10"
+    },
+    "month": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Cover month (e.g., 'January', 'May')",
+      "frequency": "10/10"
+    },
+    "year": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Cover year (e.g., '1988', '1961')",
+      "frequency": "10/10"
+    },
+    "pages": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Page count (e.g., '36')",
+      "frequency": "1/10 — rare but useful when present"
+    },
+    "original_price": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Original cover price (e.g., '12¢ US')",
+      "frequency": "1/10 — rare but useful when present"
+    },
+
+    "_section_story": "--- Story ---",
+
+    "story_title": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Title of the primary story (e.g., 'Venom', 'Behold... The Vision!')",
+      "frequency": "10/10"
+    },
+    "synopsis": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full synopsis of the primary story — can be very long (2000-7000+ characters)",
+      "frequency": "10/10"
+    },
+    "story_arc": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Named story arc this issue belongs to (e.g., 'The Beginning of the End')",
+      "frequency": "1/10 — rare but high value for grouping"
+    },
+    "storyline": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Named storyline this issue belongs to (e.g., 'Demon in a Bottle')",
+      "frequency": "1/10 — rare but high value for grouping"
+    },
+
+    "_section_credits": "--- Credits ---",
+
+    "writer": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Writer(s) — newline-separated if multiple (merged from Writer1_1, Writer1_2, etc.)",
+      "frequency": "10/10"
+    },
+    "penciler": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Penciler(s) — newline-separated if multiple",
+      "frequency": "10/10"
+    },
+    "inker": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Inker(s) — newline-separated if multiple",
+      "frequency": "10/10"
+    },
+    "colorist": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Colorist(s) — newline-separated if multiple",
+      "frequency": "10/10"
+    },
+    "letterer": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Letterer(s) — newline-separated if multiple",
+      "frequency": "10/10"
+    },
+    "editor": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Issue editor(s) — newline-separated if multiple",
+      "frequency": "10/10"
+    },
+    "editor_in_chief": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Editor-in-Chief at time of publication (e.g., 'Tom DeFalco', 'Stan Lee')",
+      "frequency": "10/10"
+    },
+    "cover_artists": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Primary cover artist(s) — newline-separated (merged from Image1_Artist1 through Image1_Artist5)",
+      "frequency": "10/10"
+    },
+
+    "_section_quote": "--- Quote ---",
+
+    "quotation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Notable quote from the issue",
+      "frequency": "10/10"
+    },
+    "quotation_speaker": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Character who spoke the quotation",
+      "frequency": "10/10"
+    },
+
+    "_section_content": "--- Content ---",
+
+    "appearing": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Characters, teams, locations, and items appearing in the issue — structured text, will feed join tables",
+      "frequency": "10/10"
+    },
+    "notes": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Continuity notes, chronology annotations, and editorial comments",
+      "frequency": "6/10"
+    },
+    "trivia": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Interesting facts about the issue — publication history, real-world context",
+      "frequency": "4/10"
+    },
+
+    "_section_external": "--- External ---",
+
+    "marvel_unlimited_id": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Marvel Unlimited digital ID — useful for cross-referencing with Marvel's official platform",
+      "frequency": "8/10"
+    },
+
+    "_section_images": "--- Images ---",
+
+    "variant_covers": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "JSON array of variant covers: [{image_url, artists, text}, ...] — resolved from Image2-5 fields. Null if no variants.",
+      "frequency": "2/10 — only newer/popular issues have variants"
+    }
+  },
+
+  "dropped_fields": {
+    "_meta": "Fields from discovery that are intentionally excluded from the schema",
+
+    "previous_issue": "Redundant — series entity + joins handle reading order",
+    "next_issue": "Redundant — series entity + joins handle reading order",
+    "story_title_2": "Secondary story title — rare (1/10), niche anthology content",
+    "synopsis_2": "Secondary story synopsis — rare (1/10)",
+    "appearing_2": "Secondary story appearances — rare (1/10)",
+    "reprint_of_2": "Reprint reference for secondary story — rare (1/10)",
+    "recommended": "Reading recommendations — not structured data",
+    "links": "External reference links — not structured data"
+  },
+
+  "relationships": {
+    "_meta": "These will be handled by join tables — defined separately after all entity schemas are finalized",
+    "character_comics": "From Appearing field → join table with role (featured/supporting/antagonist)",
+    "comic_series": "Foreign key to series table — which series this issue belongs to",
+    "comic_events": "Join table — which events this issue ties into"
+  }
+}
