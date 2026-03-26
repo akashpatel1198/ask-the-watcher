@@ -1,0 +1,206 @@
+{
+  "_meta": "Team entity schema — Option B from discovery analysis (13 sampled teams, ~6691 total teams)",
+
+  "table": "teams",
+
+  "columns": {
+    "_meta": "Fields are grouped by purpose. 'nullable' means the field is not present on all teams.",
+
+    "id": {
+      "type": "INTEGER PRIMARY KEY",
+      "description": "Auto-increment ID"
+    },
+    "wiki_page_title": {
+      "type": "TEXT UNIQUE NOT NULL",
+      "description": "Original wiki page title — used as the unique key for upserts (e.g., 'Avengers_(Earth-616)')"
+    },
+
+    "image_url": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full CDN URL for the team's infobox image, resolved from wiki Image field via MediaWiki imageinfo API"
+    },
+
+    "_section_identity": "--- Core Identity ---",
+
+    "name": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Team name (e.g., 'Avengers', 'X-Men')",
+      "frequency": "12/13"
+    },
+    "aliases": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Alternative names — comma-separated (e.g., 'Cap's Kooky Quartet, Earth's Mightiest Heroes')",
+      "frequency": "5/13"
+    },
+    "status": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Current status (e.g., 'Active', 'Defunct')",
+      "frequency": "12/13"
+    },
+    "identity": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Public knowledge level (e.g., 'Public', 'Secret')",
+      "frequency": "12/13"
+    },
+    "reality": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Primary reality (e.g., 'Earth-616')",
+      "frequency": "12/13"
+    },
+    "origin": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Brief founding narrative — 1-2 sentences (e.g., 'Formed to oppose Chinese government treatment of super-humans.')",
+      "frequency": "11/13"
+    },
+    "creators": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Comic creators — semicolon-separated (e.g., 'Fabian Nicieza; Mike Wieringo')",
+      "frequency": "12/13"
+    },
+
+    "_section_membership": "--- Membership ---",
+
+    "leaders": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Current and former leaders — cleaned from wiki links, may include 'Formerly:' sections",
+      "frequency": "9/13"
+    },
+    "current_members": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Present active members — cleaned from wiki links, newline-separated",
+      "frequency": "9/13"
+    },
+    "former_members": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Past members — cleaned from wiki links, newline-separated. May reference external lists for large teams.",
+      "frequency": "11/13"
+    },
+
+    "_section_relationships": "--- Relationships ---",
+
+    "allies": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Allied groups/individuals — cleaned from wiki links",
+      "frequency": "9/13"
+    },
+    "enemies": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Adversary entities — cleaned from wiki links",
+      "frequency": "12/13"
+    },
+
+    "_section_logistics": "--- Logistics ---",
+
+    "base_of_operations": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Headquarters/locations — cleaned from wiki links (e.g., 'Mobile', 'Xavier's School for Gifted Youngsters')",
+      "frequency": "12/13"
+    },
+    "place_of_formation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Where the team was founded — cleaned from wiki links",
+      "frequency": "8/13"
+    },
+
+    "_section_equipment": "--- Equipment ---",
+
+    "weapons": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Team armaments — can be descriptive text or list",
+      "frequency": "8/13"
+    },
+    "transportation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Vehicles/travel methods",
+      "frequency": "8/13"
+    },
+    "equipment": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "General equipment and gear",
+      "frequency": "6/13"
+    },
+
+    "_section_publication": "--- Publication ---",
+
+    "first_appearance": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "First comic appearance (e.g., 'X-Force Annual Vol 1 3')",
+      "frequency": "12/13"
+    },
+    "last_appearance": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Last comic appearance — only for defunct teams",
+      "frequency": "5/13"
+    },
+
+    "_section_quote": "--- Quote ---",
+
+    "quotation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Notable quote or team motto",
+      "frequency": "7/13"
+    },
+    "quotation_speaker": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Character who spoke the quotation",
+      "frequency": "7/13"
+    },
+
+    "_section_misc": "--- Misc ---",
+
+    "notes": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Additional notes — continuity, editorial context",
+      "frequency": "8/13"
+    },
+    "trivia": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Behind-the-scenes facts, real-world context",
+      "frequency": "4/13"
+    }
+  },
+
+  "dropped_fields": {
+    "_meta": "Fields from discovery that are intentionally excluded from the schema",
+
+    "History": "Multi-paragraph narrative — too large for structured DB (322K chars for X-Men alone). Origin field covers founding context.",
+    "Overview": "Brief overview text — redundant with Origin",
+    "EditorialNames": "Alternative publication title names — publication metadata, not entity data",
+    "PlaceOfDissolution": "Where team dissolved — only 1/13 teams (3Peace)",
+    "QuoteSource": "Issue citation for quotation — redundant, the quote itself is sufficient",
+    "Links": "External reference links — not structured data",
+    "Wikipedia": "Wikipedia article name — external reference",
+    "NoGallery": "Wiki display flag — not entity data",
+    "Appendix": "Link to appendix page — wiki navigation, not entity data"
+  },
+
+  "relationships": {
+    "_meta": "These will be handled by join tables — defined separately after all entity schemas are finalized",
+    "character_teams": "From CurrentMembers/FormerMembers/Leaders fields → join table with role (leader/member/former_member)",
+    "team_allies": "From Allies/Enemies fields → join table linking teams to allied/enemy teams or characters"
+  }
+}
