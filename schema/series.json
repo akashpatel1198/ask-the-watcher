@@ -1,0 +1,112 @@
+{
+  "_meta": "Series entity schema — based on discovery analysis (16 sampled series)",
+
+  "table": "series",
+
+  "columns": {
+    "_meta": "Fields are grouped by purpose. 'nullable' means the field is not present on all series.",
+
+    "id": {
+      "type": "INTEGER PRIMARY KEY",
+      "description": "Auto-increment ID"
+    },
+    "wiki_page_title": {
+      "type": "TEXT UNIQUE NOT NULL",
+      "description": "Original wiki page title — used as the unique key for upserts (e.g., 'Amazing_Spider-Man_Vol_1')"
+    },
+
+    "image_url": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full CDN URL for the series volume logo, resolved from wiki volume_logo field via MediaWiki imageinfo API"
+    },
+
+    "_section_metadata": "--- Metadata ---",
+
+    "format": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Series format (e.g., 'Ongoing Series', 'Limited Series')",
+      "frequency": "16/16"
+    },
+    "type": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Series type (e.g., 'Solo', 'Team', 'Event')",
+      "frequency": "16/16"
+    },
+    "status": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Publication status (e.g., 'Finished', 'Ongoing')",
+      "frequency": "16/16"
+    },
+    "genres": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Genre classification (e.g., 'Super Hero')",
+      "frequency": "16/16"
+    },
+    "featured": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Featured character(s) or team — cleaned from wiki links (e.g., 'Spider-Man' or 'Captain America (Burnside); Captain America (Rogers); Captain America (Simons)')",
+      "frequency": "16/16"
+    },
+
+    "_section_credits": "--- Credits ---",
+
+    "writers": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of writers with issue counts (e.g., 'Stan Lee (112 issues)\\nGerry Conway (39 issues)'). Merged from writer1–writerN and writer1_issues–writerN_issues.",
+      "frequency": "10/16"
+    },
+    "pencilers": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Newline-separated list of pencilers with issue counts (e.g., 'Steve Ditko (38 issues)\\nJohn Romita Sr. (64 issues)'). Merged from penciler1–pencilerN and penciler1_issues–pencilerN_issues.",
+      "frequency": "10/16"
+    },
+
+    "_section_context": "--- Context ---",
+
+    "previous_volume": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Previous volume this series was renamed/relaunched from (e.g., 'X-Men Vol 1')",
+      "frequency": "2/16"
+    },
+    "notes": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Editorial notes — external links to Marvel.com, continuity notes",
+      "frequency": "4/16"
+    },
+    "see_also": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Related series, annuals, and specials — cleaned from wiki links",
+      "frequency": "4/16"
+    }
+  },
+
+  "dropped_fields": {
+    "_meta": "Fields from discovery that are intentionally excluded from the schema",
+
+    "part1–partN": "Issue number ranges by decade — layout/navigation chrome, no API value",
+    "part1_above–partN_above": "Decade section headers — HTML layout chrome",
+    "part1_below–partN_below": "Relaunch notes between sections — layout chrome",
+    "publisher": "Redundant — all entries are Marvel Comics",
+    "accolades": "Eisner award data — sparse (3/16), partially broken wiki template artifacts",
+    "year/category1/who1/for1": "Award detail fields — sparse, template artifacts leak through",
+    "AnnualName/AnnualYear": "Annual references — collapsed into see_also where present",
+    "SpecialName/SpecialYear": "Special issue references — collapsed into see_also where present"
+  },
+
+  "relationships": {
+    "_meta": "These will be handled by join tables — defined separately after all entity schemas are finalized",
+    "comic_series": "Foreign key on comics table pointing to this series — which issues belong to this series",
+    "series_characters": "Derivable from featured field + comic appearances — may not need its own join table"
+  }
+}
