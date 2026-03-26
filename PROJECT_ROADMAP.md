@@ -292,7 +292,12 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Event beta script (`scripts/discovery/event/beta-script.js`) — 14 samples validated, all clean
 - [x] Team schema (`schema/teams.json` — 21 columns, Option B)
 - [x] Team beta script (`scripts/discovery/team/beta-script.js`) — 15 samples validated; Navigation template extraction for leaders, "See also" member redirect following
-- [ ] Join table design
+- [x] Join table design (`schema/joins.json` — 4 join tables + 1 FK column)
+- [x] `extractWikiLinks()` added to `lib/scraper-utils.js` — extracts raw wiki page titles for FK resolution
+- [x] Beta scripts updated (team, event, comic) → write join rows to `scripts/discovery/joins/output/`
+- [x] Bug fix: comic `parseAppearingForJoins` wasn't stripping `'''` bold markup from section headers → 0 join rows; fixed
+- [x] Beta join outputs validated — character_teams (1,186), character_events (155), event_comics (363), comic_characters (723), series FK (16/16)
+- [x] Join table size estimated: ~30–40 MB total at full scale (trivial vs ~1 GB entity tables)
 - [ ] Install `better-sqlite3` + `lib/db.js`
 - [ ] Schema migration script
 - [ ] Connection test script

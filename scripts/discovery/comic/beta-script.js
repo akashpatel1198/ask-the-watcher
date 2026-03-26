@@ -78,7 +78,7 @@ function parseAppearingForJoins(raw) {
   const rows = [];
   let currentType = null;
   for (const line of raw.split("\n")) {
-    const lower = line.toLowerCase().trim().replace(/:$/, "");
+    const lower = line.toLowerCase().trim().replace(/'{2,}/g, "").trim().replace(/:$/, "");
     if (APPEARING_SECTION_MAP[lower] !== undefined) {
       currentType = APPEARING_SECTION_MAP[lower];
       continue;
