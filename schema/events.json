@@ -1,0 +1,172 @@
+{
+  "_meta": "Event entity schema — based on discovery analysis (14 sampled events, ~380 total events)",
+
+  "table": "events",
+
+  "columns": {
+    "_meta": "Fields are grouped by purpose. 'nullable' means the field is not present on all events.",
+
+    "id": {
+      "type": "INTEGER PRIMARY KEY",
+      "description": "Auto-increment ID"
+    },
+    "wiki_page_title": {
+      "type": "TEXT UNIQUE NOT NULL",
+      "description": "Original wiki page title — used as the unique key for upserts (e.g., 'Secret_Wars_(1984_Event)')"
+    },
+
+    "image_url": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full CDN URL for the event's main image, resolved from wiki Image field via MediaWiki imageinfo API"
+    },
+
+    "_section_identity": "--- Identity ---",
+
+    "name": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Event name (e.g., 'Secret Wars', 'Blood Hunt')",
+      "frequency": "14/14"
+    },
+    "aliases": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Alternative names — newline-separated (e.g., 'Stark Wars', 'Endless Night')",
+      "frequency": "6/14"
+    },
+    "creators": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Event creators — cleaned from wiki links (e.g., 'Jim Shooter' or 'Jed MacKay; Pepe Larraz')",
+      "frequency": "6/14"
+    },
+
+    "_section_story": "--- Story ---",
+
+    "synopsis": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Full event synopsis/history — can be very long for major events (500–15000+ characters)",
+      "frequency": "14/14"
+    },
+    "reality": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Primary reality (e.g., 'Earth-616')",
+      "frequency": "12/14"
+    },
+    "locations": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Key locations — cleaned from wiki links (e.g., 'Battleworld' or 'Xandar, Hala, Kyln')",
+      "frequency": "4/14"
+    },
+
+    "_section_characters": "--- Characters ---",
+
+    "protagonists": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Heroes/protagonists — cleaned from wiki links, comma-separated",
+      "frequency": "12/14"
+    },
+    "antagonists": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Villains/antagonists — cleaned from wiki links, comma-separated",
+      "frequency": "10/14"
+    },
+    "others": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Neutral or other notable characters — cleaned from wiki links, comma-separated",
+      "frequency": "5/14"
+    },
+
+    "_section_issues": "--- Issues ---",
+
+    "first_issue": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "First issue of the event (e.g., 'Blood Hunt Vol 1 1')",
+      "frequency": "13/14"
+    },
+    "last_issue": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Last issue of the event (e.g., 'Blood Hunt Vol 1 5')",
+      "frequency": "10/14"
+    },
+    "reading_order": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Core event issues in reading order — newline-separated, collapsed from Part1–PartN fields",
+      "frequency": "12/14"
+    },
+    "tie_ins": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Tie-in issues — cleaned from wiki gallery markup, newline-separated",
+      "frequency": "5/14"
+    },
+    "prelude": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Prelude issues — cleaned from wiki gallery markup, newline-separated",
+      "frequency": "2/14"
+    },
+
+    "_section_quote": "--- Quote ---",
+
+    "quotation": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Notable quote from the event",
+      "frequency": "3/14"
+    },
+    "quotation_speaker": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Character who spoke the quotation",
+      "frequency": "3/14"
+    },
+
+    "_section_misc": "--- Misc ---",
+
+    "notes": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Continuity notes, follow-up references, editorial context",
+      "frequency": "8/14"
+    },
+    "trivia": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Behind-the-scenes facts, real-world context",
+      "frequency": "6/14"
+    },
+    "recommended": {
+      "type": "TEXT",
+      "nullable": true,
+      "description": "Recommended related reading — cleaned from wiki links, newline-separated",
+      "frequency": "2/14"
+    }
+  },
+
+  "dropped_fields": {
+    "_meta": "Fields from discovery that are intentionally excluded from the schema",
+
+    "Links": "External reference links — not structured data",
+    "Wikipedia": "Wikipedia article name — external reference, not entity data",
+    "Collected": "Omnibus/TPB references — niche, only 2/14",
+    "QuoteSource": "Issue citation for quotation — redundant, the quote itself is sufficient",
+    "Title": "Duplicate of Name — only appeared in 1/14 samples"
+  },
+
+  "relationships": {
+    "_meta": "These will be handled by join tables — defined separately after all entity schemas are finalized",
+    "character_events": "From Protagonists/Antagonists/Others fields → join table with role (protagonist/antagonist/other)",
+    "comic_events": "From reading_order + tie_ins fields → join table linking comics to events"
+  }
+}
