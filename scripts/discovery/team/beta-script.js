@@ -3,11 +3,12 @@
 // Hardcoded to 15 sample teams. The real Phase 3 script will paginate a category instead.
 
 import axios from "axios";
-import { writeFile, mkdir } from "fs/promises";
-import { parseInfobox, cleanWikitext, resolveImageUrl, delay } from "../../../lib/scraper-utils.js";
+import { writeFile, readFile, mkdir } from "fs/promises";
+import { parseInfobox, cleanWikitext, resolveImageUrl, delay, extractWikiLinks } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/team/output";
+const JOINS_DIR = "scripts/discovery/joins/output";
 await mkdir(OUT_DIR, { recursive: true });
 
 const TEAMS = [
@@ -56,6 +57,32 @@ const FIELD_MAP = {
   Notes: "notes",
   Trivia: "trivia",
 };
+
+// ---------------------------------------------------------------------------
+// Raw field extractor (for join link extraction before cleaning)
+// ---------------------------------------------------------------------------
+// Returns raw wikitext content of a named infobox field, including any
+// Navigation blocks that parseInfobox() strips. Used so extractWikiLinks()
+// can run on the original [[links]] before they are cleaned away.
+
+function getRawField(wikitext, fieldName) {
+  const fieldPattern = new RegExp(`^\\|\\s*${fieldName}\\s*=\\s*(.*)`, "m");
+  const fieldMatch = wikitext.match(fieldPattern);
+  if (!fieldMatch) return "";
+  const startIdx = wikitext.indexOf(fieldMatch[0]);
+  const afterField = wikitext.slice(startIdx + fieldMatch[0].length);
+  const lines = afterField.split("\n");
+  const initial = fieldMatch[1].trim();
+  const content = [initial];
+  let braceDepth = (initial.match(/\{\{/g) || []).length - (initial.match(/\}\}/g) || []).length;
+  for (const line of lines) {
+    braceDepth += (line.match(/\{\{/g) || []).length - (line.match(/\}\}/g) || []).length;
+    if (braceDepth < 0) braceDepth = 0;
+    if (braceDepth === 0 && /^\|\s*[A-Z]/.test(line)) break;
+    content.push(line);
+  }
+  return content.join("\n");
+}
 
 // ---------------------------------------------------------------------------
 // Navigation template extraction
@@ -290,6 +317,31 @@ for (const page of TEAMS) {
   const populated = Object.values(row).filter((v) => v !== null).length;
   const total = Object.keys(row).length;
   console.log(`  → beta_${filename}.json (${populated}/${total} fields populated)`);
+
+  // 8. Extract character_teams join rows
+  try {
+    const teamTitle = row.wiki_page_title;
+    const joinRows = [];
+
+    for (const charTitle of extractWikiLinks(getRawField(wikitext, "Leaders"))) {
+      joinRows.push({ character_wiki_page_title: charTitle, team_wiki_page_title: teamTitle, role: "leader" });
+    }
+    for (const charTitle of extractWikiLinks(String(infobox.CurrentMembers || ""))) {
+      joinRows.push({ character_wiki_page_title: charTitle, team_wiki_page_title: teamTitle, role: "member" });
+    }
+    for (const charTitle of extractWikiLinks(getRawField(wikitext, "FormerMembers"))) {
+      joinRows.push({ character_wiki_page_title: charTitle, team_wiki_page_title: teamTitle, role: "former_member" });
+    }
+
+    if (joinRows.length > 0) {
+      const joinPath = `${JOINS_DIR}/beta_joins_character_teams.json`;
+      const existing = JSON.parse(await readFile(joinPath, "utf8").catch(() => "[]"));
+      await writeFile(joinPath, JSON.stringify([...existing, ...joinRows], null, 2));
+      console.log(`  → +${joinRows.length} character_teams join rows`);
+    }
+  } catch (err) {
+    console.log(`  !! Join extraction failed: ${err.message}`);
+  }
 
   await delay();
 }

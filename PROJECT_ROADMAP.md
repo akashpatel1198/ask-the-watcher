@@ -246,7 +246,25 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 4. **Design join tables**
    - After all 5 entity schemas are finalized, define the relationship/join tables
-   - character ↔ team, character ↔ comic, character ↔ event, comic ↔ event, comic ↔ series, character ↔ series
+   - New `extractWikiLinks()` function in `lib/scraper-utils.js` — extracts raw wiki page titles (e.g., `Peter_Parker_(Earth-616)`) from wikitext before cleaning. These page titles are the `wiki_page_title` unique key in every entity table, so they serve directly as foreign keys in join tables.
+   - **4 join tables:**
+
+     | Join Table | Entity A | Entity B | Extra Columns |
+     |---|---|---|---|
+     | `character_teams` | characters | teams | role (leader/member/former) |
+     | `character_events` | characters | events | role (protagonist/antagonist/other) |
+     | `comic_characters` | comics | characters | appearance_type (featured/supporting/antagonist) |
+     | `event_comics` | events | comics | reading_order, type (main/tie-in) |
+
+   - **1 FK column (not a join table):** `comics.series_wiki_page_title` → points to the series this issue belongs to (many-to-one: many comics belong to one series). Derived entirely from the comic's own page title — strip the trailing issue number (`Amazing_Spider-Man_Vol_1_300` → `Amazing_Spider-Man_Vol_1`). No cross-script dependency: the comic beta script sets this field independently. At seed time, if the derived value matches a row in the series table the FK is valid; if not (series not scraped or name mismatch), it is stored as `null`.
+   - **Dropped relationships:**
+     - `team_allies` (team↔team via Allies/Enemies) — low priority for API consumers
+     - `series_characters` — the series→comic→character path via existing joins covers this; the `featured` text column on series is sufficient for "who headlines this series"
+   - **Beta validation flow:**
+     1. Comic beta script runs → derives `series_wiki_page_title` from page title, writes into each comic row JSON
+     2. Series beta script runs independently (any order) → writes series row JSONs with their `wiki_page_title`
+     3. Team, event, and comic beta scripts also append rows to `scripts/discovery/joins/output/beta_joins_*.json` (one file per join table, scaffolded as empty arrays)
+     4. Validation script runs after all beta scripts → reads all entity JSONs and join JSONs, checks that FKs resolve to real `wiki_page_title` values, logs matches and mismatches
 
 5. **Install `better-sqlite3`**
    - `npm install better-sqlite3`
@@ -348,9 +366,12 @@ Small entities are scraped first. Their relationship data informs which characte
    - Track scraped URLs to allow restart without re-fetching
 
 6. **Write `seed-db.js`**
+   - **Seeding strategy (Option A): Scrape everything first, seed joins last.**
+     1. Insert all entity rows into their core tables (series, events, teams, comics, characters) — order doesn't matter since no FK constraints are enforced yet
+     2. Set `comics.series_wiki_page_title` FK during comic insertion (derived from comic page title naming convention)
+     3. Populate all 4 join tables last — both sides of every join exist at this point, so unresolved `wiki_page_title` references (entities that weren't scraped due to filtering/caps) are simply skipped
    - Reads from JSON output
    - Inserts into SQLite using wiki page title as unique key
-   - Populates join tables after core tables
 
 7. **Validate data**
    - Spot check entities and relationships via SQLite queries

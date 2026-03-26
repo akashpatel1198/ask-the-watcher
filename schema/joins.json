@@ -1,0 +1,129 @@
+{
+  "_meta": "Join table schemas for many-to-many relationships between entities. All join tables use wiki_page_title as the FK on both sides — these match the UNIQUE NOT NULL wiki_page_title column on every entity table. Rows where either FK does not resolve to an existing entity row are skipped at seed time (entities filtered out by the 10k/20k caps).",
+
+  "fk_columns": {
+    "_meta": "Many-to-one relationships handled as FK columns on the entity table, not as join tables.",
+    "comics.series_wiki_page_title": {
+      "references": "series.wiki_page_title",
+      "nullable": true,
+      "description": "Which series this comic issue belongs to. Derived from naming convention: 'Amazing Spider-Man Vol 1 300' → series 'Amazing_Spider-Man_Vol_1'. Null if the issue's series was not scraped."
+    }
+  },
+
+  "join_tables": {
+
+    "character_teams": {
+      "_meta": "Characters who are or were members of a team, including leaders. Populated from team CurrentMembers / FormerMembers / Leaders infobox fields via extractWikiLinks().",
+      "columns": {
+        "character_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "characters.wiki_page_title",
+          "description": "FK to the character (e.g., 'Peter_Parker_(Earth-616)')"
+        },
+        "team_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "teams.wiki_page_title",
+          "description": "FK to the team (e.g., 'Avengers_(Earth-616)')"
+        },
+        "role": {
+          "type": "TEXT",
+          "nullable": true,
+          "values": ["leader", "member", "former_member"],
+          "description": "Role of the character in the team. Derived from which field the link appeared in: Leaders → leader, CurrentMembers → member, FormerMembers → former_member."
+        }
+      },
+      "primary_key": ["character_wiki_page_title", "team_wiki_page_title", "role"],
+      "source_fields": {
+        "entity": "teams",
+        "infobox_fields": ["Leaders", "CurrentMembers", "FormerMembers"]
+      }
+    },
+
+    "character_events": {
+      "_meta": "Characters who participated in an event, tagged by role. Populated from event Protagonists / Antagonists / Others infobox fields via extractWikiLinks().",
+      "columns": {
+        "character_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "characters.wiki_page_title",
+          "description": "FK to the character (e.g., 'Anthony_Stark_(Earth-616)')"
+        },
+        "event_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "events.wiki_page_title",
+          "description": "FK to the event (e.g., 'Civil_War_(Event)')"
+        },
+        "role": {
+          "type": "TEXT",
+          "nullable": true,
+          "values": ["protagonist", "antagonist", "other"],
+          "description": "Role of the character in the event. Derived from which field the link appeared in: Protagonists → protagonist, Antagonists → antagonist, Others → other."
+        }
+      },
+      "primary_key": ["character_wiki_page_title", "event_wiki_page_title", "role"],
+      "source_fields": {
+        "entity": "events",
+        "infobox_fields": ["Protagonists", "Antagonists", "Others"]
+      }
+    },
+
+    "comic_characters": {
+      "_meta": "Characters who appear in a comic issue, tagged by appearance type. Populated from comic Appearing1 infobox field via extractWikiLinks().",
+      "columns": {
+        "comic_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "comics.wiki_page_title",
+          "description": "FK to the comic issue (e.g., 'Amazing_Fantasy_Vol_1_15')"
+        },
+        "character_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "characters.wiki_page_title",
+          "description": "FK to the character (e.g., 'Peter_Parker_(Earth-616)')"
+        },
+        "appearance_type": {
+          "type": "TEXT",
+          "nullable": true,
+          "values": ["featured", "supporting", "antagonist", "other"],
+          "description": "Role of the character in the issue. Derived from which section of the Appearing field the link appeared in: Featured Characters → featured, Supporting Characters → supporting, Antagonists → antagonist, Other Characters → other."
+        }
+      },
+      "primary_key": ["comic_wiki_page_title", "character_wiki_page_title"],
+      "source_fields": {
+        "entity": "comics",
+        "infobox_fields": ["Appearing1"]
+      }
+    },
+
+    "event_comics": {
+      "_meta": "Comics that are part of an event's reading list or tie-ins. Populated from event Part1–PartN and TieIns infobox fields. Part fields use {{cl|Title}} templates (not wiki links) — extractWikiLinks() handles the Part fields after resolving {{cl}} to the page title string.",
+      "columns": {
+        "event_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "events.wiki_page_title",
+          "description": "FK to the event (e.g., 'Civil_War_(Event)')"
+        },
+        "comic_wiki_page_title": {
+          "type": "TEXT NOT NULL",
+          "references": "comics.wiki_page_title",
+          "description": "FK to the comic issue (e.g., 'Civil_War_Vol_1_1')"
+        },
+        "reading_order": {
+          "type": "INTEGER",
+          "nullable": true,
+          "description": "Position in the event's reading list (1-based). Null for tie-ins."
+        },
+        "type": {
+          "type": "TEXT",
+          "nullable": true,
+          "values": ["main", "tie_in"],
+          "description": "Whether this comic is a main reading list entry (Part1–PartN) or a tie-in (TieIns field)."
+        }
+      },
+      "primary_key": ["event_wiki_page_title", "comic_wiki_page_title"],
+      "source_fields": {
+        "entity": "events",
+        "infobox_fields": ["Part1–PartN", "TieIns"]
+      }
+    }
+
+  }
+}

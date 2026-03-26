@@ -3,11 +3,12 @@
 // Hardcoded to 14 sample events. The real Phase 3 script will paginate a category instead.
 
 import axios from "axios";
-import { writeFile, mkdir } from "fs/promises";
-import { parseInfobox, cleanWikitext, resolveImageUrl, delay } from "../../../lib/scraper-utils.js";
+import { writeFile, readFile, mkdir } from "fs/promises";
+import { parseInfobox, cleanWikitext, resolveImageUrl, delay, extractWikiLinks } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/event/output";
+const JOINS_DIR = "scripts/discovery/joins/output";
 await mkdir(OUT_DIR, { recursive: true });
 
 const EVENTS = [
@@ -139,6 +140,64 @@ for (const page of EVENTS) {
   const populated = Object.values(row).filter((v) => v !== null).length;
   const total = Object.keys(row).length;
   console.log(`  → beta_${filename}.json (${populated}/${total} fields populated)`);
+
+  // 8. Extract character_events and event_comics join rows
+  try {
+    const eventTitle = row.wiki_page_title;
+    const charJoinRows = [];
+    const comicJoinRows = [];
+
+    // character_events — from Protagonists / Antagonists / Others
+    for (const charTitle of extractWikiLinks(String(infobox.Protagonists || ""))) {
+      charJoinRows.push({ character_wiki_page_title: charTitle, event_wiki_page_title: eventTitle, role: "protagonist" });
+    }
+    for (const charTitle of extractWikiLinks(String(infobox.Antagonists || ""))) {
+      charJoinRows.push({ character_wiki_page_title: charTitle, event_wiki_page_title: eventTitle, role: "antagonist" });
+    }
+    for (const charTitle of extractWikiLinks(String(infobox.Others || ""))) {
+      charJoinRows.push({ character_wiki_page_title: charTitle, event_wiki_page_title: eventTitle, role: "other" });
+    }
+
+    // event_comics — from Part1–PartN
+    // Part fields use {{cl|Title}} templates (not wiki links), so clean and underscore.
+    // extractWikiLinks is tried first in case some parts use [[Page|Display]] format.
+    for (let i = 1; i <= 50; i++) {
+      const raw = String(infobox[`Part${i}`] || "");
+      if (!raw) break;
+      const links = extractWikiLinks(raw);
+      const titles = links.length > 0
+        ? links
+        : [cleanWikitext(raw).replace(/ /g, "_")].filter(Boolean);
+      for (const comicTitle of titles) {
+        comicJoinRows.push({ event_wiki_page_title: eventTitle, comic_wiki_page_title: comicTitle, reading_order: i, type: "main" });
+      }
+    }
+
+    // event_comics — from TieIns gallery (already cleaned by cleanGallery → underscore)
+    if (infobox.TieIns) {
+      const cleaned = cleanGallery(String(infobox.TieIns));
+      if (cleaned) {
+        for (const title of cleaned.split("\n").filter(Boolean)) {
+          comicJoinRows.push({ event_wiki_page_title: eventTitle, comic_wiki_page_title: title.replace(/ /g, "_"), reading_order: null, type: "tie_in" });
+        }
+      }
+    }
+
+    if (charJoinRows.length > 0) {
+      const joinPath = `${JOINS_DIR}/beta_joins_character_events.json`;
+      const existing = JSON.parse(await readFile(joinPath, "utf8").catch(() => "[]"));
+      await writeFile(joinPath, JSON.stringify([...existing, ...charJoinRows], null, 2));
+      console.log(`  → +${charJoinRows.length} character_events join rows`);
+    }
+    if (comicJoinRows.length > 0) {
+      const joinPath = `${JOINS_DIR}/beta_joins_event_comics.json`;
+      const existing = JSON.parse(await readFile(joinPath, "utf8").catch(() => "[]"));
+      await writeFile(joinPath, JSON.stringify([...existing, ...comicJoinRows], null, 2));
+      console.log(`  → +${comicJoinRows.length} event_comics join rows`);
+    }
+  } catch (err) {
+    console.log(`  !! Join extraction failed: ${err.message}`);
+  }
 
   await delay();
 }

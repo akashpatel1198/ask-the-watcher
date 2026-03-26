@@ -3,11 +3,12 @@
 // Hardcoded to 16 sample comics. The real Phase 3 script will paginate a category instead.
 
 import axios from "axios";
-import { writeFile, mkdir } from "fs/promises";
-import { parseInfobox, cleanWikitext, resolveImageUrl, delay } from "../../../lib/scraper-utils.js";
+import { writeFile, readFile, mkdir } from "fs/promises";
+import { parseInfobox, cleanWikitext, resolveImageUrl, delay, extractWikiLinks } from "../../../lib/scraper-utils.js";
 
 const API_URL = "https://marvel.fandom.com/api.php";
 const OUT_DIR = "scripts/discovery/comic/output";
+const JOINS_DIR = "scripts/discovery/joins/output";
 await mkdir(OUT_DIR, { recursive: true });
 
 const COMICS = [
@@ -61,6 +62,35 @@ const FIELD_MAP = {
 
   // Editor-in-Chief (handled separately due to hyphen in key)
 };
+
+// Parse the Appearing field into join rows, section-aware.
+// Sections: "Featured Characters" → featured, "Supporting Characters" → supporting,
+// "Antagonists" → antagonist, "Other Characters" → other. Lines outside known sections are skipped.
+const APPEARING_SECTION_MAP = {
+  "featured characters": "featured",
+  "supporting characters": "supporting",
+  "antagonists": "antagonist",
+  "other characters": "other",
+};
+
+function parseAppearingForJoins(raw) {
+  if (!raw) return [];
+  const rows = [];
+  let currentType = null;
+  for (const line of raw.split("\n")) {
+    const lower = line.toLowerCase().trim().replace(/:$/, "");
+    if (APPEARING_SECTION_MAP[lower] !== undefined) {
+      currentType = APPEARING_SECTION_MAP[lower];
+      continue;
+    }
+    if (currentType) {
+      for (const title of extractWikiLinks(line)) {
+        rows.push({ character_wiki_page_title: title, appearance_type: currentType });
+      }
+    }
+  }
+  return rows;
+}
 
 // Merge numbered creator fields into a single newline-separated string.
 // e.g., Writer1_1, Writer1_2, Writer1_3 → "Writer A\nWriter B\nWriter C"
@@ -164,6 +194,12 @@ for (const page of COMICS) {
   // 6. Build variant covers
   row.variant_covers = await buildVariantCovers(infobox);
 
+  // 6b. Derive series_wiki_page_title FK from page title naming convention.
+  // Comic page titles embed the series title: "Amazing Spider-Man Vol 1 300"
+  // → strip trailing issue number → "Amazing Spider-Man Vol 1" → underscore.
+  const seriesTitle = page.replace(/\s+\d+$/, "").replace(/ /g, "_");
+  row.series_wiki_page_title = seriesTitle || null;
+
   // 7. Write output
   const filename = page.replace(/[\s()]/g, "_").replace(/_+/g, "_");
   const outPath = `${OUT_DIR}/beta_${filename}.json`;
@@ -172,6 +208,22 @@ for (const page of COMICS) {
   const populated = Object.values(row).filter((v) => v !== null).length;
   const total = Object.keys(row).length;
   console.log(`  → beta_${filename}.json (${populated}/${total} fields populated)`);
+
+  // 8. Extract comic_characters join rows from raw Appearing1 field
+  try {
+    const comicTitle = row.wiki_page_title;
+    const appearingRows = parseAppearingForJoins(String(infobox.Appearing1 || ""));
+    const joinRows = appearingRows.map((r) => ({ comic_wiki_page_title: comicTitle, ...r }));
+
+    if (joinRows.length > 0) {
+      const joinPath = `${JOINS_DIR}/beta_joins_comic_characters.json`;
+      const existing = JSON.parse(await readFile(joinPath, "utf8").catch(() => "[]"));
+      await writeFile(joinPath, JSON.stringify([...existing, ...joinRows], null, 2));
+      console.log(`  → +${joinRows.length} comic_characters join rows`);
+    }
+  } catch (err) {
+    console.log(`  !! Join extraction failed: ${err.message}`);
+  }
 
   await delay();
 }
