@@ -265,15 +265,15 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Image URL support added to `lib/scraper-utils.js` and character `fetch-sample.js`
 - [x] Character schema designed (`schema/characters.json` — 36 columns, Option C)
 - [x] Character beta script (`scripts/discovery/character/beta-script.js`) — 9 samples validated, all clean
-- [x] Cleaner fixes: wiki section headers, `thumb|` tags, `[[Category:]]` tags, orphaned `]]`
-- [ ] Comic schema
-- [ ] Comic beta script
-- [ ] Series schema
-- [ ] Series beta script
-- [ ] Team schema
-- [ ] Team beta script
-- [ ] Event schema
-- [ ] Event beta script
+- [x] Cleaner fixes: wiki section headers, `thumb|` tags, `[[Category:]]` tags, orphaned `]]`, trailing commas
+- [x] Comic schema (`schema/comics.json` — 27 columns, Option C)
+- [x] Comic beta script (`scripts/discovery/comic/beta-script.js`) — 16 samples validated, all clean
+- [x] Series schema (`schema/series.json` — 14 columns, Option B+)
+- [x] Series beta script (`scripts/discovery/series/beta-script.js`) — 16 samples validated, all clean
+- [x] Event schema (`schema/events.json` — 22 columns, Option C)
+- [x] Event beta script (`scripts/discovery/event/beta-script.js`) — 14 samples validated, all clean
+- [x] Team schema (`schema/teams.json` — 21 columns, Option B)
+- [x] Team beta script (`scripts/discovery/team/beta-script.js`) — 15 samples validated; Navigation template extraction for leaders, "See also" member redirect following
 - [ ] Join table design
 - [ ] Install `better-sqlite3` + `lib/db.js`
 - [ ] Schema migration script
