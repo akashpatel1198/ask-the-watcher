@@ -312,18 +312,27 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 ### Two-Step Architecture
 
-Phase 3 is split into **enumerate** (build filtered page lists) and **scrape** (process pages from those lists). This decouples pagination/filtering logic from the detailed scraping pipeline, making each step independently debuggable and re-runnable.
+Phase 3 is split into **analyze** (fetch byte sizes + histogram), **enumerate** (filter and build page lists), and **scrape** (process pages from those lists). This decouples pagination/filtering from scraping, and separates the slow API work (analyze) from the instant threshold decision (enumerate).
 
-**Page lists** are stored as JSON arrays (one page title per line for readability) in `scripts/data/pages_*.json` (gitignored). These are intermediate artifacts — delete after seeding.
+**Analyze scripts** paginate a wiki category, batch-fetch byte sizes, save raw `[title, bytes]` pairs to `enumerate/output/`, and print a histogram. Run once per entity — no need to re-run unless the wiki changes.
+
+**Enumerate scripts** read cached size data, filter at a user-provided byte threshold, and write page lists to `scripts/data/pages_*.json`. Instant, no API calls — try different thresholds freely.
+
+**Page lists** are JSON arrays (one title per line for readability), gitignored. Delete after seeding.
 
 ```
 scripts/
   enumerate/
+    analyze-series.js        → enumerate/output/sizes_series.json
+    analyze-teams.js         → enumerate/output/sizes_teams.json
+    analyze-comics.js        → enumerate/output/sizes_comics.json
+    analyze-characters.js    → enumerate/output/sizes_characters.json
     enumerate-series.js      → scripts/data/pages_series.json
-    enumerate-events.js      → scripts/data/pages_events.json
+    enumerate-events.js      → scripts/data/pages_events.json       (no analyze — all ~384 kept)
     enumerate-teams.js       → scripts/data/pages_teams.json
-    enumerate-comics.js      → scripts/data/pages_comics.json     (filtered)
-    enumerate-characters.js  → scripts/data/pages_characters.json  (filtered)
+    enumerate-comics.js      → scripts/data/pages_comics.json
+    enumerate-characters.js  → scripts/data/pages_characters.json
+    output/                  (sizes caches, gitignored)
   scrape-series.js           ← reads pages_series.json
   scrape-events.js           ← reads pages_events.json
   scrape-teams.js            ← reads pages_teams.json
@@ -334,13 +343,13 @@ scripts/
 
 ### Target Counts ("Ambitious" Tier)
 
-| Entity | Wiki Total | Target | Strategy |
-|---|---|---|---|
-| Comic Series | ~12,200 (`Category:Volumes`) | ~2,000–4,000 | Filter by page byte size (drop stubs/TPBs) |
-| Events | ~384 (`Category:Events`) | all ~384 | No filtering needed |
-| Teams | ~6,700 (`Category:Teams`) | ~2,000–3,000 | Filter by page byte size (drop stubs) |
-| Comic Issues | ~70,400 (`Category:Comics`) | ~20,000 (cap) | Relationship-based + byte size ranking |
-| Characters | ~98,500 (`Category:Characters`) | ~10,000 (cap) | Relationship-based + byte size ranking |
+| Entity | Wiki Total | Filtered | Threshold | Strategy |
+|---|---|---|---|---|
+| Comic Series | 12,201 | **2,530** | ≥ 500 bytes | Byte size filter (drop stubs/TPBs) |
+| Events | 384 | **384** | — | No filtering needed |
+| Teams | 6,694 | **2,412** | ≥ 2,000 bytes | Byte size filter (drop stubs) |
+| Comic Issues | 70,364 | **22,190** | ≥ 4,500 bytes | Byte size filter + FK backfill |
+| Characters | 98,594 | **10,717** | ≥ 4,000 bytes | Byte size filter + FK backfill |
 
 > **No universe filtering.** Characters are not limited to Earth-616; the 10k cap + relationship-based filtering handles scope naturally.
 
@@ -360,31 +369,19 @@ Applied to: series, teams, comics (as quality-based cap), characters (as quality
 
 ### Enumeration Order & Filtering Strategy
 
-Enumeration scripts run sequentially — later entities depend on earlier scrape data for cross-reference filtering.
+All entities use the same **analyze → enumerate** pattern with byte size filtering. No dependency chain between entities — all analyze scripts can run independently.
 
-**Step 1 — Enumerate + scrape small entities**
+**Analyze + enumerate (all entities independent):**
 
-1. **Series** — Paginate `Category:Volumes` → filter by byte size (drop stubs/TPBs) → write `pages_series.json` → scrape all
-2. **Events** (~384, no filtering) — Paginate `Category:Events` → write `pages_events.json` → scrape all → extract `Part1`–`PartN`, `TieIns` → **builds issue inclusion list**
-3. **Teams** — Paginate `Category:Teams` → filter by byte size (drop stubs) → write `pages_teams.json` → scrape all → extract `CurrentMembers`, `FormerMembers` → **builds character inclusion list**
+1. **Series** — `analyze-series.js` → histogram → `enumerate-series.js 500` → 2,530 pages ✅
+2. **Events** — `enumerate-events.js` (no analyze needed, keep all 384) ✅
+3. **Teams** — `analyze-teams.js` → histogram → `enumerate-teams.js 2000` → 2,412 pages ✅
+4. **Comics** — `analyze-comics.js` → histogram → `enumerate-comics.js 4500` → 22,190 pages ✅
+5. **Characters** — `analyze-characters.js` → histogram → `enumerate-characters.js 4000` → 10,717 pages ✅
 
-**Step 2 — Enumerate + scrape comics (two-pass filter, 20k cap)**
+**FK backfill after seeding:**
 
-- **Pass 1 — Relationship-based inclusion:** Keep any issue that is:
-  - Referenced by an event (`PartN`, `TieIns`, `First`/`Last`)
-  - Part of a top series (rank series by issue count, keep top 100–150)
-  - Contains `{{1st|...}}` first appearance tags or `{{Death|...}}` tags in `Appearing`
-- **Pass 2 — Quality-based cap:** If Pass 1 yields >20k, rank by page byte size and cut from the bottom.
-- Write `pages_comics.json` → scrape all → extract character wiki links from `Appearing` fields → **adds to character inclusion list**
-
-**Step 3 — Enumerate + scrape characters (two-pass filter, 10k cap)**
-
-- **Pass 1 — Relationship-based inclusion:** Keep any character that is:
-  - A team member (from Step 1 team data)
-  - An event protagonist/antagonist/other (from Step 1 event data)
-  - Referenced in comic `Appearing` fields (from Step 2)
-- **Pass 2 — Quality-based cap:** If Pass 1 yields >10k, rank by page byte size and cut from the bottom.
-- Write `pages_characters.json` → scrape all
+After all entities are scraped and seeded, check join table resolution rates. Any unresolved FKs (e.g., an event references a comic not in our 20k, or a team member isn't in our 10k characters) are collected into a targeted backfill list. Run a focused scrape for just those missing pages — likely a small set since high-byte-size pages are naturally the most-referenced ones.
 
 ### Scrape Scripts
 
