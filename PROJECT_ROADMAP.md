@@ -298,9 +298,11 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 - [x] Bug fix: comic `parseAppearingForJoins` wasn't stripping `'''` bold markup from section headers → 0 join rows; fixed
 - [x] Beta join outputs validated — character_teams (1,186), character_events (155), event_comics (363), comic_characters (723), series FK (16/16)
 - [x] Join table size estimated: ~30–40 MB total at full scale (trivial vs ~1 GB entity tables)
-- [ ] Install `better-sqlite3` + `lib/db.js`
-- [ ] Schema migration script
-- [ ] Connection test script
+- [x] Install `better-sqlite3` + `lib/db.js` (shared client with WAL mode + foreign keys)
+- [x] Removed `lib/supabase.js` — no longer needed after SQLite switch
+- [x] Schema migration script (`scripts/setup-db.js`) — creates 5 entity tables + 4 join tables + 9 indexes from schema JSONs
+- [x] Connection test script (`scripts/test-connection.js`) — verifies tables, column counts, insert+query round-trip, WAL mode, foreign keys
+- [x] Added `data/*.db` to `.gitignore`
 
 ---
 

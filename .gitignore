@@ -4,3 +4,6 @@ scripts/data/
 **/output/
 **/.scraped-urls.json
 **/failed_urls.json
+data/*.db
+data/*.db-wal
+data/*.db-shm
