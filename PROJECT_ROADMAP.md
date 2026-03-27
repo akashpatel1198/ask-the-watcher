@@ -310,78 +310,131 @@ Locations (57%), TieIns (57%), Creators (50% — many events span multiple creat
 
 > Goal: Run production scrapes across all entity categories and load clean data into SQLite.
 
+### Two-Step Architecture
+
+Phase 3 is split into **enumerate** (build filtered page lists) and **scrape** (process pages from those lists). This decouples pagination/filtering logic from the detailed scraping pipeline, making each step independently debuggable and re-runnable.
+
+**Page lists** are stored as JSON arrays (one page title per line for readability) in `scripts/data/pages_*.json` (gitignored). These are intermediate artifacts — delete after seeding.
+
+```
+scripts/
+  enumerate/
+    enumerate-series.js      → scripts/data/pages_series.json
+    enumerate-events.js      → scripts/data/pages_events.json
+    enumerate-teams.js       → scripts/data/pages_teams.json
+    enumerate-comics.js      → scripts/data/pages_comics.json     (filtered)
+    enumerate-characters.js  → scripts/data/pages_characters.json  (filtered)
+  scrape-series.js           ← reads pages_series.json
+  scrape-events.js           ← reads pages_events.json
+  scrape-teams.js            ← reads pages_teams.json
+  scrape-comics.js           ← reads pages_comics.json
+  scrape-characters.js       ← reads pages_characters.json
+  seed-db.js
+```
+
 ### Target Counts ("Ambitious" Tier)
 
-| Entity | Target | Strategy |
-|---|---|---|
-| Comic Series | all ~569 | Keep all — scrape first |
-| Events | all ~384 | Keep all — scrape first |
-| Teams | all ~6,700 | Keep all — scrape first |
-| Comic Issues | ~20,000 (cap) | Filtered + ranked — scrape after small entities |
-| Characters | ~10,000 (cap) | Filtered + ranked — scrape last |
+| Entity | Wiki Total | Target | Strategy |
+|---|---|---|---|
+| Comic Series | ~12,200 (`Category:Volumes`) | ~2,000–4,000 | Filter by page byte size (drop stubs/TPBs) |
+| Events | ~384 (`Category:Events`) | all ~384 | No filtering needed |
+| Teams | ~6,700 (`Category:Teams`) | ~2,000–3,000 | Filter by page byte size (drop stubs) |
+| Comic Issues | ~70,400 (`Category:Comics`) | ~20,000 (cap) | Relationship-based + byte size ranking |
+| Characters | ~98,500 (`Category:Characters`) | ~10,000 (cap) | Relationship-based + byte size ranking |
 
-### Scrape Order & Filtering Strategy
+> **No universe filtering.** Characters are not limited to Earth-616; the 10k cap + relationship-based filtering handles scope naturally.
 
-Small entities are scraped first. Their relationship data informs which characters and comics to keep.
+### Category Discovery Notes
 
-**Step 1 — Scrape small entities (no filtering needed)**
-1. Comic Series (all ~569)
-2. Events (all ~384) → extracts `Part1`–`PartN`, `TieIns` → **builds issue inclusion list**
-3. Teams (all ~6,700) → extracts `CurrentMembers`, `FormerMembers` → **builds character inclusion list**
+- **Series** use `Category:Volumes` (not `Category:Comic_Series`). Contains 12,207 pages + 12,326 subcategories. Includes TPBs, omnibuses, and one-shots alongside regular series — filtering needed.
+- **Events** use `Category:Events` with `cmtype=page` to exclude the ~425 subcategories.
+- **Teams** use `Category:Teams` — flat structure, pages mixed with subcategories. Use `cmtype=page` or filter by `ns=0`.
+- **Comics** use `Category:Comics`.
+- **Characters** use `Category:Characters`.
 
-**Step 2 — Scrape comics (two-pass filter, 20k cap)**
+### Byte Size Filtering
+
+The MediaWiki API supports `prop=revisions&rvprop=size` to get page byte size without fetching full wikitext. Requests can batch up to 50 titles per call. Pages with very small byte size are stubs with little useful data — filtering by a minimum byte size threshold drops these cheaply during enumeration without reading any page content.
+
+Applied to: series, teams, comics (as quality-based cap), characters (as quality-based cap).
+
+### Enumeration Order & Filtering Strategy
+
+Enumeration scripts run sequentially — later entities depend on earlier scrape data for cross-reference filtering.
+
+**Step 1 — Enumerate + scrape small entities**
+
+1. **Series** — Paginate `Category:Volumes` → filter by byte size (drop stubs/TPBs) → write `pages_series.json` → scrape all
+2. **Events** (~384, no filtering) — Paginate `Category:Events` → write `pages_events.json` → scrape all → extract `Part1`–`PartN`, `TieIns` → **builds issue inclusion list**
+3. **Teams** — Paginate `Category:Teams` → filter by byte size (drop stubs) → write `pages_teams.json` → scrape all → extract `CurrentMembers`, `FormerMembers` → **builds character inclusion list**
+
+**Step 2 — Enumerate + scrape comics (two-pass filter, 20k cap)**
+
 - **Pass 1 — Relationship-based inclusion:** Keep any issue that is:
   - Referenced by an event (`PartN`, `TieIns`, `First`/`Last`)
   - Part of a top series (rank series by issue count, keep top 100–150)
   - Contains `{{1st|...}}` first appearance tags or `{{Death|...}}` tags in `Appearing`
-- **Pass 2 — Quality-based cap:** If Pass 1 yields >20k, rank remaining by wikitext length (available from API before full parse) and cut from the bottom.
-- After scraping, extract all character wiki links from `Appearing` fields → **adds to character inclusion list**
+- **Pass 2 — Quality-based cap:** If Pass 1 yields >20k, rank by page byte size and cut from the bottom.
+- Write `pages_comics.json` → scrape all → extract character wiki links from `Appearing` fields → **adds to character inclusion list**
 
-**Step 3 — Scrape characters (two-pass filter, 10k cap)**
-- **Pre-filter:** Earth-616 only (~98k → ~40k)
+**Step 3 — Enumerate + scrape characters (two-pass filter, 10k cap)**
+
 - **Pass 1 — Relationship-based inclusion:** Keep any character that is:
   - A team member (from Step 1 team data)
   - An event protagonist/antagonist/other (from Step 1 event data)
   - Referenced in comic `Appearing` fields (from Step 2)
-- **Pass 2 — Quality-based cap:** If Pass 1 yields >10k, rank remaining by wikitext length or infobox field count and cut from the bottom.
+- **Pass 2 — Quality-based cap:** If Pass 1 yields >10k, rank by page byte size and cut from the bottom.
+- Write `pages_characters.json` → scrape all
 
-### Steps
+### Scrape Scripts
 
-1. ~~**Build wikitext-to-clean-text parser**~~ *(done in Phase 1 — `cleanWikitext()` in `lib/scraper-utils.js`)*
+Each scrape script reads its `pages_*.json` and runs the same pipeline proven in the beta scripts:
 
-2. **Scrape small entities** (series, events, teams)
-   - Paginate through category pages to collect all entity URLs
-   - Parse and clean data
-   - Extract relationship references (event→issues, team→characters)
-   - Output to JSON
+1. Fetch wikitext via `action=parse&page={title}&prop=wikitext`
+2. `parseInfobox()` → extract fields
+3. Guard against empty infobox (redirects) → skip + log
+4. Map fields to schema columns (entity-specific `FIELD_MAP` + special handlers)
+5. `cleanWikitext()` on each field value
+6. `resolveImageUrl()` for image field (separate API call per page)
+7. `extractWikiLinks()` on relationship fields → write join rows
+8. Append entity row to output JSON
+9. 800ms delay between requests
 
-3. **Scrape comics** (filtered, 20k cap)
-   - Build inclusion list from event references + top series
-   - Scrape included issues, parse and clean
-   - Apply quality-based cap if over 20k
-   - Extract character references from `Appearing` fields
-   - Output to JSON
+**Entity-specific special handling** (carried forward from beta scripts):
+- **Comics:** Merge numbered creator fields, build variant covers, derive `series_wiki_page_title` FK from page title, section-aware `Appearing` parsing for joins
+- **Series:** Merge creators with issue counts, collapse `SeeAlso` + annuals/specials
+- **Teams:** `extractFieldWithNavigation()` for Leaders/FormerMembers, `followMemberRedirect()` for "See also" member pages, `getRawField()` for join extraction
+- **Events:** Collapse `Part1`–`PartN` reading order, `cleanGallery()` for tie-ins/prelude, dual join extraction (character_events + event_comics)
 
-4. **Scrape characters** (filtered, 10k cap)
-   - Build inclusion list from team members + event characters + comic appearances
-   - Filter to Earth-616 only
-   - Scrape included characters, parse and clean
-   - Apply quality-based cap if over 10k
-   - Output to JSON
+### Resumability & Failure Tracking
 
-5. **Add resumability**
-   - Track scraped URLs to allow restart without re-fetching
+- **Progress file** (`scripts/data/.progress_{entity}.json`) — Set of already-scraped `wiki_page_title`s. On restart, skip pages already in the set.
+- **Incremental saves** — Flush entity JSON + progress file every 50 pages.
+- **Failure log** (`scripts/data/.failures_{entity}.json`) — Array of `{ page_title, error, timestamp }`. Failed pages are skipped and logged. Re-run with `--retry-failures` flag to retry only failed pages.
+- **Rate limiting** — 800ms delay between requests (via `delay()` in `scraper-utils.js`). Exponential backoff on 429/5xx errors.
+- **Idempotent seeding** — `seed-db.js` uses INSERT OR REPLACE (upsert) keyed on `wiki_page_title`. Safe to re-run.
 
-6. **Write `seed-db.js`**
-   - **Seeding strategy (Option A): Scrape everything first, seed joins last.**
-     1. Insert all entity rows into their core tables (series, events, teams, comics, characters) — order doesn't matter since no FK constraints are enforced yet
-     2. Set `comics.series_wiki_page_title` FK during comic insertion (derived from comic page title naming convention)
-     3. Populate all 4 join tables last — both sides of every join exist at this point, so unresolved `wiki_page_title` references (entities that weren't scraped due to filtering/caps) are simply skipped
-   - Reads from JSON output
-   - Inserts into SQLite using wiki page title as unique key
+### Seeding Strategy
 
-7. **Validate data**
-   - Spot check entities and relationships via SQLite queries
+**Scrape everything first, seed joins last.**
+
+1. Insert all entity rows into core tables (series, events, teams, comics, characters) — order doesn't matter since no FK constraints enforced yet
+2. Set `comics.series_wiki_page_title` FK during comic insertion (derived from page title naming convention)
+3. Populate all 4 join tables last — both sides of every join exist at this point, so unresolved `wiki_page_title` references (entities filtered out by caps) are simply skipped
+4. Reads from JSON output in `scripts/data/`
+5. Inserts into SQLite using `wiki_page_title` as unique key
+
+### Known Edge Cases
+
+- **Redirects:** Some wiki pages (e.g., `S.H.I.E.L.D. (Earth-616)`) redirect to a different title. `parseInfobox()` returns empty object. All scrape scripts guard against this — skip + log.
+- **Series FK derivation:** `page.replace(/\s+\d+$/, "")` strips trailing issue number. May break for titles ending in numbers that aren't issue numbers. Log mismatches during seeding.
+- **Event→comic join FKs:** Event `Part` fields use `{{cl|Title}}` templates, not wiki links. `extractWikiLinks()` is tried first; fallback to `cleanWikitext(raw).replace(/ /g, "_")`. Slight mismatch risk with comic `wiki_page_title` values.
+
+### Validation
+
+- Spot check entities and relationships via SQLite queries after seeding
+- Compare row counts against expected targets
+- Check join table resolution rates (how many FKs resolve vs. skip)
 
 ---
 
