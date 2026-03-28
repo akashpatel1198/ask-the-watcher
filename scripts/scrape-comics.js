@@ -1,7 +1,7 @@
 // Production scrape script for comics.
 // Reads pages_comics.json → fetches → parses → cleans → outputs scrape_comics.json + joins
 
-import { parseInfobox, cleanWikitext, resolveImageUrl, delay, extractWikiLinks, runScraper } from "../lib/scraper-utils.js";
+import { parseInfobox, cleanWikitext, resolveImageUrlBatch, delay, extractWikiLinks, runScraper } from "../lib/scraper-utils.js";
 
 const FIELD_MAP = {
   ReleaseDate: "release_date",
@@ -70,13 +70,13 @@ function mergeCoverArtists(infobox) {
   return values.length > 0 ? values.join("\n") : null;
 }
 
-async function buildVariantCovers(infobox) {
+// Builds variant covers using a pre-resolved image URL map (from batch call)
+function buildVariantCovers(infobox, imageUrlMap) {
   const variants = [];
   for (let i = 2; i <= 10; i++) {
     const imageKey = `Image${i}`;
     if (!infobox[imageKey]) continue;
-    const imageUrl = await resolveImageUrl(infobox[imageKey]);
-    await delay();
+    const imageUrl = imageUrlMap.get(infobox[imageKey]) || null;
     const text = infobox[`Image${i}_Text`] || null;
     variants.push({
       image_url: imageUrl,
@@ -96,13 +96,17 @@ await runScraper({
 
     row.wiki_page_title = pageTitle.replace(/ /g, "_");
 
-    // Image
-    if (infobox.Image1) {
-      row.image_url = await resolveImageUrl(infobox.Image1);
-      await delay();
-    } else {
-      row.image_url = null;
+    // Batch-resolve all images (main + variants) in one API call
+    const imageFilenames = [];
+    if (infobox.Image1) imageFilenames.push(infobox.Image1);
+    for (let i = 2; i <= 10; i++) {
+      if (infobox[`Image${i}`]) imageFilenames.push(infobox[`Image${i}`]);
     }
+    const imageUrlMap = imageFilenames.length > 0
+      ? await resolveImageUrlBatch(imageFilenames)
+      : new Map();
+
+    row.image_url = infobox.Image1 ? (imageUrlMap.get(infobox.Image1) || null) : null;
 
     // Simple fields
     for (const [rawField, schemaCol] of Object.entries(FIELD_MAP)) {
@@ -130,8 +134,8 @@ await runScraper({
     row.editor = mergeCreators(infobox, "Editor");
     row.cover_artists = mergeCoverArtists(infobox);
 
-    // Variant covers
-    row.variant_covers = await buildVariantCovers(infobox);
+    // Variant covers (uses pre-resolved imageUrlMap)
+    row.variant_covers = buildVariantCovers(infobox, imageUrlMap);
 
     // Derive series FK
     const seriesTitle = pageTitle.replace(/\s+\d+$/, "").replace(/ /g, "_");
