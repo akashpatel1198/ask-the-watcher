@@ -409,17 +409,16 @@ Each scrape script reads its `pages_*.json` and runs the same pipeline proven in
 - **Incremental saves** — Flush entity JSON + progress file every 50 pages.
 - **Failure log** (`scripts/data/.failures_{entity}.json`) — Array of `{ page_title, error, timestamp }`. Failed pages are skipped and logged. Re-run with `--retry-failures` flag to retry only failed pages.
 - **Rate limiting** — 800ms delay between requests (via `delay()` in `scraper-utils.js`). Exponential backoff on 429/5xx errors.
-- **Idempotent seeding** — `seed-db.js` uses INSERT OR REPLACE (upsert) keyed on `wiki_page_title`. Safe to re-run.
+- **Idempotent seeding** — Seed scripts use INSERT OR REPLACE (upsert) keyed on `wiki_page_title`. Safe to re-run.
 
 ### Seeding Strategy
 
-**Scrape everything first, seed joins last.**
+**Two scripts: entities first, joins second.**
 
-1. Insert all entity rows into core tables (series, events, teams, comics, characters) — order doesn't matter since no FK constraints enforced yet
-2. Set `comics.series_wiki_page_title` FK during comic insertion (derived from page title naming convention)
-3. Populate all 4 join tables last — both sides of every join exist at this point, so unresolved `wiki_page_title` references (entities filtered out by caps) are simply skipped
-4. Reads from JSON output in `scripts/data/`
-5. Inserts into SQLite using `wiki_page_title` as unique key
+- `scripts/seed-entities.js` — Reads `scrape_*.json` files, gets column names from SQLite via `PRAGMA table_info`, maps JSON keys to DB columns, inserts per-entity in single transactions. `INSERT OR REPLACE` keyed on `wiki_page_title`.
+- `scripts/seed-joins.js` — Pre-loads all entity `wiki_page_title` Sets into memory for fast FK validation. For each join row, checks both FK sides exist: if both exist → insert, if one or both missing → skip and record in failures. Outputs `scripts/data/seed_joins_report.json` with per-table stats and full failure details (`{ row, missing: { which_col: value } }`).
+
+**Run order:** `seed-entities.js` first (all 5 entity tables), then `seed-joins.js` (all 4 join tables). Both are idempotent.
 
 ### Known Edge Cases
 
@@ -432,6 +431,28 @@ Each scrape script reads its `pages_*.json` and runs the same pipeline proven in
 - Spot check entities and relationships via SQLite queries after seeding
 - Compare row counts against expected targets
 - Check join table resolution rates (how many FKs resolve vs. skip)
+
+### Progress
+
+- [x] Analyze + enumerate all 5 entities (series, events, teams, comics, characters)
+- [x] All 5 scrape scripts written and run to completion
+- [x] Scrape results: series 2,528 · events 383 · teams 2,411 · comics 22,190 · characters 10,703
+- [x] Join rows scraped: character_teams 23,837 · character_events 3,962 · comic_characters 935,704 · event_comics 2,904
+- [x] `seed-entities.js` — all 38,215 entity rows inserted
+- [x] `seed-joins.js` — join tables seeded with FK validation
+- [x] Migration: `comic_characters` PK expanded to include `appearance_type` (was deduping ~6,800 multi-role appearances)
+- [x] Final join counts: character_teams 9,760 · character_events 2,248 · comic_characters 282,798 · event_comics 1,656
+
+**Join resolution rates:**
+
+| Join Table | Inserted | Skipped | Resolution | Failure Side |
+|---|---|---|---|---|
+| character_teams | 9,760 | 14,077 | 41% | character only |
+| character_events | 2,248 | 1,714 | 57% | character only |
+| comic_characters | 286,016 | 649,688 | 31% | character only |
+| event_comics | 1,676 | 1,228 | 58% | comic only |
+
+> **All failures are single-side:** character joins fail because most referenced characters are below the 4,000-byte scrape threshold (~10k scraped out of ~98k). Event→comic joins fail because some event reading-list comics are below the 4,500-byte threshold. No "both missing" failures. FK backfill deferred to later.
 
 ---
 
