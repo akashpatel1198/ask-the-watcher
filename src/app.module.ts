@@ -12,7 +12,10 @@ import { EventsModule } from "./events/events.module";
   imports: [
     DatabaseModule,
     AuthModule,
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ThrottlerModule.forRoot([
+      { name: "per-key", ttl: 60000, limit: 100 },
+      { name: "global", ttl: 60000, limit: 1000 },
+    ]),
     CharactersModule,
     ComicsModule,
     SeriesModule,
