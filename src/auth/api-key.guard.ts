@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { createHash } from "crypto";
-import { DatabaseService } from "../database/database.service";
+import { SupabaseService } from "../supabase/supabase.service";
 import { IS_PUBLIC_KEY } from "./public.decorator";
 
 const DAILY_CAP: Record<string, number> = {
@@ -17,32 +17,11 @@ const DAILY_CAP: Record<string, number> = {
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   constructor(
-    private readonly db: DatabaseService,
+    private readonly supabase: SupabaseService,
     private readonly reflector: Reflector,
-  ) {
-    // Ensure api_keys table exists
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS api_keys (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key_hash TEXT NOT NULL UNIQUE,
-        user_email TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        tier TEXT DEFAULT 'free'
-      )
-    `);
+  ) {}
 
-    // Usage tracking table
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS api_key_usage (
-        key_hash TEXT NOT NULL,
-        date TEXT NOT NULL,
-        request_count INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (key_hash, date)
-      )
-    `);
-  }
-
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -57,10 +36,12 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     const hash = createHash("sha256").update(apiKey).digest("hex");
-    const row = this.db.queryOne<{ tier: string }>(
-      "SELECT tier FROM api_keys WHERE key_hash = ?",
-      [hash],
-    );
+
+    const { data: row } = await this.supabase.client
+      .from("api_keys")
+      .select("tier")
+      .eq("key_hash", hash)
+      .single();
 
     if (!row) {
       throw new UnauthorizedException("Invalid API key");
@@ -70,10 +51,12 @@ export class ApiKeyGuard implements CanActivate {
     const today = new Date().toISOString().slice(0, 10);
     const cap = DAILY_CAP[row.tier] ?? DAILY_CAP.free;
 
-    const usage = this.db.queryOne<{ request_count: number }>(
-      "SELECT request_count FROM api_key_usage WHERE key_hash = ? AND date = ?",
-      [hash, today],
-    );
+    const { data: usage } = await this.supabase.client
+      .from("api_key_usage")
+      .select("request_count")
+      .eq("key_hash", hash)
+      .eq("date", today)
+      .single();
 
     if (usage && usage.request_count >= cap) {
       throw new UnauthorizedException(
@@ -81,14 +64,11 @@ export class ApiKeyGuard implements CanActivate {
       );
     }
 
-    // Increment usage counter (upsert)
-    this.db.run(
-      `INSERT INTO api_key_usage (key_hash, date, request_count)
-       VALUES (?, ?, 1)
-       ON CONFLICT (key_hash, date)
-       DO UPDATE SET request_count = request_count + 1`,
-      [hash, today],
-    );
+    // Atomic increment via postgres function
+    await this.supabase.client.rpc("increment_api_key_usage", {
+      p_key_hash: hash,
+      p_date: today,
+    });
 
     // Attach to request for downstream guards
     request.apiKeyTier = row.tier;

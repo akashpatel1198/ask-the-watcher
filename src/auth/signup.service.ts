@@ -1,16 +1,18 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { createHash, randomUUID } from "crypto";
-import { DatabaseService } from "../database/database.service";
+import { SupabaseService } from "../supabase/supabase.service";
 
 @Injectable()
 export class SignupService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly supabase: SupabaseService) {}
 
   async signup(email: string): Promise<void> {
-    const existing = this.db.queryOne(
-      "SELECT id FROM api_keys WHERE user_email = ?",
-      [email],
-    );
+    const { data: existing } = await this.supabase.client
+      .from("api_keys")
+      .select("id")
+      .eq("user_email", email)
+      .single();
+
     if (existing) {
       // Don't reveal whether the email exists — just return silently
       return;
@@ -19,10 +21,9 @@ export class SignupService {
     const rawKey = randomUUID();
     const hash = createHash("sha256").update(rawKey).digest("hex");
 
-    this.db.run(
-      "INSERT INTO api_keys (key_hash, user_email, tier) VALUES (?, ?, ?)",
-      [hash, email, "free"],
-    );
+    await this.supabase.client
+      .from("api_keys")
+      .insert({ key_hash: hash, user_email: email, tier: "free" });
 
     await Promise.all([
       this.sendKeyToUser(email, rawKey),

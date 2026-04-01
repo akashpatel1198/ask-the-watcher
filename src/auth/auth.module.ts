@@ -1,13 +1,13 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
-import { DatabaseModule } from "../database/database.module";
+import { SupabaseModule } from "../supabase/supabase.module";
 import { ApiKeyGuard } from "./api-key.guard";
 import { ApiKeyThrottlerGuard } from "./api-key-throttler.guard";
 import { SignupController } from "./signup.controller";
 import { SignupService } from "./signup.service";
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [SupabaseModule],
   controllers: [SignupController],
   providers: [
     SignupService,
