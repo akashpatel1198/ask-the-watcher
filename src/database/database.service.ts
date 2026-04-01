@@ -7,7 +7,7 @@ export class DatabaseService implements OnModuleDestroy {
   private db: Database.Database;
 
   constructor() {
-    const dbPath = path.join(process.cwd(), "data", "marvel.db");
+    const dbPath = process.env.DB_PATH ?? path.join(process.cwd(), "data", "marvel.db");
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");

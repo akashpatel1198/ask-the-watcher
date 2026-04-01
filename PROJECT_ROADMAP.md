@@ -510,6 +510,48 @@ Each scrape script reads its `pages_*.json` and runs the same pipeline proven in
    - `?page=` and `?limit=` query params
    - Default limit: 20, max: 100
 
+### Progress
+
+- [x] NestJS project scaffolded with ESM + TypeScript
+- [x] `DatabaseService` — wraps `better-sqlite3`, WAL mode, foreign keys on, `DB_PATH` env var support
+- [x] API key guard (`ApiKeyGuard`) — hashes `x-api-key` header, validates against DB, enforces daily caps by tier (free: 10k/day, paid: 100k/day), tracks usage in `api_key_usage` table
+- [x] Custom throttler guard (`ApiKeyThrottlerGuard`) — tracks by API key hash (falls back to IP), two buckets: per-key 100 req/min, global 1000 req/min
+- [x] Feature modules: characters, comics, series, teams, events — all with list + single endpoints, pagination, filters
+- [x] Swagger UI at `/api/docs` with API key authentication
+- [x] Self-serve API key signup (`POST /api/auth/signup`) — email-based, no account required, dedup by email, 3 signups/IP/hour
+- [x] Resend email integration — keys delivered to user inbox, owner alert on every new key issued
+- [x] `@Public()` decorator — exempts signup endpoint from API key requirement
+- [x] `dotenv` loaded at startup for local `.env` support
+
+---
+
+## Phase 5 — Hosting on Railway
+
+> Goal: Deploy the NestJS API + SQLite DB to Railway with persistent storage, CI/CD from GitHub, and Resend email configured.
+
+### Plan
+
+- **Platform:** Railway (persistent volume for SQLite, auto-deploy on push to `main`)
+- **DB:** SQLite file stored on Railway volume at `/data/marvel.db`, path injected via `DB_PATH` env var
+- **Email:** Resend with verified `akashpatel.dev` domain
+
+### Steps
+
+1. **Dockerfile** — `node:20-slim` base with build tools for `better-sqlite3` native compilation
+2. **Push to GitHub** — commit Dockerfile, signup flow, dotenv changes
+3. **Railway project** — connect GitHub repo, auto-detect Dockerfile
+4. **Add volume** — mount at `/data`, set `DB_PATH=/data/marvel.db`
+5. **Set env vars** — `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `DB_PATH`
+6. **Seed DB on Railway** — install Railway CLI, run `railway run node scripts/seed-db.js` to populate the volume with `marvel.db`
+
+### Progress
+
+- [x] `DB_PATH` env var support added to `DatabaseService`
+- [x] `Dockerfile` written (`node:20-slim`, build tools for native modules, `/data` volume mount point)
+- [ ] Push to GitHub and deploy to Railway
+- [ ] Add Railway volume + env vars
+- [ ] Seed DB on Railway volume
+
 ---
 
 ## Out of Scope (for now)
@@ -518,4 +560,3 @@ Each scrape script reads its `pages_*.json` and runs the same pipeline proven in
 - Image hosting / CDN (store URLs only)
 - Scheduled re-scraping / auto-updates
 - Multi-server deployment (SQLite is single-server; upgrade to Turso if needed later)
-- User-facing registration UI (API keys issued manually or via admin endpoint)
