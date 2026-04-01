@@ -11,7 +11,7 @@ if [ ! -f "$DB_FILE" ]; then
   echo "Downloading marvel.db..."
   mkdir -p /data
   curl -L --fail "$DB_DOWNLOAD_URL" -o /data/marvel.db.zip
-  unzip -o /data/marvel.db.zip -d /data
+  unzip -jo /data/marvel.db.zip -d /data
   rm /data/marvel.db.zip
   echo "Download complete."
 fi

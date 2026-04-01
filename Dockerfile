@@ -15,6 +15,7 @@ RUN mkdir -p /data
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+# cache bust: v2
 
 ENV NODE_ENV=production
 
