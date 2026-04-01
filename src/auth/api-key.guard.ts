@@ -4,8 +4,10 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { createHash } from "crypto";
 import { DatabaseService } from "../database/database.service";
+import { IS_PUBLIC_KEY } from "./public.decorator";
 
 const DAILY_CAP: Record<string, number> = {
   free: 10_000,
@@ -14,7 +16,10 @@ const DAILY_CAP: Record<string, number> = {
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  constructor(private readonly db: DatabaseService) {
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly reflector: Reflector,
+  ) {
     // Ensure api_keys table exists
     this.db.run(`
       CREATE TABLE IF NOT EXISTS api_keys (
@@ -38,6 +43,12 @@ export class ApiKeyGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest();
     const apiKey = request.headers["x-api-key"];
 

@@ -15,6 +15,7 @@ import { EventsModule } from "./events/events.module";
     ThrottlerModule.forRoot([
       { name: "per-key", ttl: 60000, limit: 100 },
       { name: "global", ttl: 60000, limit: 1000 },
+      { name: "signup", ttl: 3600000, limit: 3 },
     ]),
     CharactersModule,
     ComicsModule,
