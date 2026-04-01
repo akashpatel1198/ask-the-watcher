@@ -1,7 +1,7 @@
 FROM node:20-slim
 
 # Required for better-sqlite3 native compilation + curl for DB download
-RUN apt-get update && apt-get install -y python3 make g++ curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 make g++ curl unzip && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
