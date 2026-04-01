@@ -1,7 +1,7 @@
 FROM node:20-slim
 
-# Required for better-sqlite3 native compilation
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Required for better-sqlite3 native compilation + curl for DB download
+RUN apt-get update && apt-get install -y python3 make g++ curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -11,10 +11,12 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Volume mount point for SQLite DB
 RUN mkdir -p /data
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENV NODE_ENV=production
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["/entrypoint.sh"]
