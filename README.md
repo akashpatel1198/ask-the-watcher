@@ -16,7 +16,7 @@ The official Marvel API is limited and frustrating to work with. This project pu
 
 ## Live Version
 
-Hosted at: `` (Not Hosted Yet, Coming Soon)
+Hosted at: [https://ask-the-watcher-production.up.railway.app/api/docs](https://ask-the-watcher-production.up.railway.app/api/docs)
 
 Sign up for an API key at `POST /api/auth/signup` with your email. You'll get a key sent to your inbox. Include it as the `x-api-key` header on all requests. Swagger docs are available at `/api/docs`.
 
