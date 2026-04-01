@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Public } from "./public.decorator";
 import { SignupService } from "./signup.service";
 
@@ -21,6 +21,13 @@ export class SignupController {
   @HttpCode(HttpStatus.OK)
   @SkipThrottle({ "per-key": true, global: true })
   @Throttle({ signup: { ttl: 3600000, limit: 3 } })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["email"],
+      properties: { email: { type: "string", example: "you@example.com" } },
+    },
+  })
   @ApiOperation({
     summary: "Request an API key",
     description:
